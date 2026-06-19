@@ -241,6 +241,14 @@ def main() -> None:
             "окружения TELEGRAM_BOT_TOKEN (токен выдаёт @BotFather)."
         )
 
+    # Python 3.12+/3.14: run_polling() внутри вызывает asyncio.get_event_loop(),
+    # который в новых версиях больше не создаёт цикл событий автоматически.
+    # Создаём его явно, иначе будет "There is no current event loop".
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
+
     app = Application.builder().token(token).build()
 
     app.add_handler(CommandHandler("start", cmd_start))
