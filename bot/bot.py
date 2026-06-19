@@ -28,6 +28,7 @@ from telegram.ext import (
 import genres as genres_mod
 import quiz
 import storage
+import taste
 from catalog import genre_name
 from recommender import Recommender, effective_genres
 
@@ -87,7 +88,10 @@ def genre_select_kb(selected: set) -> InlineKeyboardMarkup:
 def main_menu_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("🎬 Листать фильмы", callback_data="menu:swipe")],
+            [
+                InlineKeyboardButton("🎬 Листать фильмы", callback_data="menu:swipe"),
+                InlineKeyboardButton("🆕 Новинки", callback_data="menu:new"),
+            ],
             [
                 InlineKeyboardButton("🎚 Жанры", callback_data="menu:genres"),
                 InlineKeyboardButton("🧠 Психотест", callback_data="menu:test"),
@@ -161,6 +165,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Команды:\n"
         "/start — начать заново (выбор жанров)\n"
         "/swipe — листать и оценивать фильмы\n"
+        "/new — современные фильмы и новинки\n"
         "/genres — изменить любимые жанры\n"
         "/mymovies — мой список (что понравилось)\n"
         "/recommend — персональная подборка\n"
@@ -241,25 +246,34 @@ def get_user_categories(user_id: int) -> list:
     return [str(g) for g in get_effective_genres(user_id)]
 
 
-async def start_deck(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: int) -> None:
+async def _fetch_pool(user_id, source, categories, exclude, page):
+    if source == "recent":
+        return await asyncio.to_thread(recommender.recent_pool, exclude, DECK_BATCH, page)
+    return await asyncio.to_thread(
+        recommender.candidate_pool, categories, exclude, DECK_BATCH, page
+    )
+
+
+async def start_deck(
+    context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: int, source: str = "genres"
+) -> None:
     categories = get_user_categories(user_id)
     exclude = storage.get_rated_keys(user_id)
+    context.user_data["deck_source"] = source
     context.user_data["deck_categories"] = categories
     context.user_data["deck_page"] = 1
     context.user_data["deck_map"] = {}
     context.user_data["swipes_session"] = 0
     await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
-    pool = await asyncio.to_thread(
-        recommender.candidate_pool, categories, exclude, DECK_BATCH, 1
-    )
+    pool = await _fetch_pool(user_id, source, categories, exclude, 1)
     context.user_data["deck"] = pool
     if not pool:
-        await context.bot.send_message(
-            chat_id,
-            "Под этот выбор фильмов не нашлось 😕\n"
-            "Измени жанры (/genres) или загляни в ❤️ /mymovies.",
-            reply_markup=main_menu_kb(),
+        hint = (
+            "Современных фильмов нет в бесплатном каталоге 😕 Подключи TMDB-ключ — и появятся новинки."
+            if source == "recent"
+            else "Под этот выбор фильмов не нашлось 😕\nИзмени жанры (/genres) или загляни в ❤️ /mymovies."
         )
+        await context.bot.send_message(chat_id, hint, reply_markup=main_menu_kb())
         return
     await send_next_card(context, chat_id, user_id)
 
@@ -267,17 +281,20 @@ async def start_deck(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: 
 async def send_next_card(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: int) -> None:
     deck = context.user_data.get("deck", [])
     if not deck:
+        source = context.user_data.get("deck_source", "genres")
         categories = context.user_data.get("deck_categories", [])
         page = context.user_data.get("deck_page", 1) + 1
         exclude = storage.get_rated_keys(user_id)
-        more = await asyncio.to_thread(
-            recommender.candidate_pool, categories, exclude, DECK_BATCH, page
-        )
+        more = await _fetch_pool(user_id, source, categories, exclude, page)
         context.user_data["deck_page"] = page
         deck.extend(more)
         if not deck:
             await finish_deck(context, chat_id, user_id)
             return
+    # ML: пересортировываем колоду по текущей модели вкуса — самые подходящие вперёд
+    weights = storage.get_taste(user_id)
+    if weights:
+        deck.sort(key=lambda m: taste.score(weights, m), reverse=True)
     movie = deck.pop(0)
     await send_card(context, chat_id, movie)
 
@@ -330,6 +347,9 @@ async def on_swipe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     value = storage.LIKE if action == "like" else storage.DISLIKE
     storage.add_rating(user_id, movie, value)
+    # ML: обновляем модель вкуса прямо сейчас — следующий показ уже точнее
+    weights = taste.update(storage.get_taste(user_id), movie, action == "like")
+    storage.set_taste(user_id, weights)
     verdict = "❤️ В избранном" if action == "like" else "👎 Не интересно"
     await query.answer(verdict)
     try:
@@ -443,6 +463,8 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     scores = quiz.score(answers)
     archetype = quiz.detect_archetype(scores)
     storage.set_quiz_result(user_id, archetype["key"], scores)
+    # ML: тёплый старт модели вкуса по ответам теста
+    storage.set_taste(user_id, taste.warm_start(storage.get_taste(user_id), scores))
 
     top = quiz.top_genres(scores, n=3)
     genre_titles = ", ".join(genre_name(g) for g in top if genre_name(g))
@@ -487,12 +509,28 @@ async def show_mymovies(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_i
     )
 
 
+def _ml_pick(pool: list, weights: dict, limit: int) -> list:
+    """Ранжирует кандидатов моделью вкуса и берёт лучших (без дублей)."""
+    seen, uniq = set(), []
+    for m in pool:
+        if m["key"] not in seen:
+            seen.add(m["key"])
+            uniq.append(m)
+    uniq.sort(key=lambda m: taste.score(weights, m), reverse=True)
+    return uniq[:limit]
+
+
 async def show_recommendations(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: int) -> None:
     categories = get_user_categories(user_id)
     exclude = storage.get_rated_keys(user_id)
-    affinity = storage.get_genre_affinity(user_id)
+    weights = storage.get_taste(user_id)
     await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
-    recs = await asyncio.to_thread(recommender.recommend, categories, exclude, affinity, 5)
+
+    # Смешиваем кандидатов по жанрам и свежие новинки, ранжируем моделью вкуса
+    by_genre = await asyncio.to_thread(recommender.candidate_pool, categories, exclude, 20, 1)
+    fresh = await asyncio.to_thread(recommender.recent_pool, exclude, 10, 1)
+    recs = _ml_pick(by_genre + fresh, weights, 5)
+
     if not recs:
         await context.bot.send_message(
             chat_id,
@@ -501,7 +539,9 @@ async def show_recommendations(context: ContextTypes.DEFAULT_TYPE, chat_id: int,
         )
         return
     await context.bot.send_message(
-        chat_id, "✨ <b>Персональная подборка</b> — оцени и её:", parse_mode=ParseMode.HTML
+        chat_id,
+        "✨ <b>Подборка под тебя</b> (учёл твои оценки) — оцени и её:",
+        parse_mode=ParseMode.HTML,
     )
     for movie in recs:
         await send_card(context, chat_id, movie)
@@ -533,6 +573,8 @@ async def on_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if action == "swipe":
         await start_deck(context, chat_id, user_id)
+    elif action == "new":
+        await start_deck(context, chat_id, user_id, source="recent")
     elif action == "genres":
         await open_genre_selector(context, chat_id, user_id, "Отметь жанры, которые тебе нравятся:")
     elif action == "mymovies":
@@ -557,6 +599,10 @@ async def on_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 # Команды, дублирующие действия меню
 async def cmd_swipe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await start_deck(context, update.effective_chat.id, update.effective_user.id)
+
+
+async def cmd_new(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await start_deck(context, update.effective_chat.id, update.effective_user.id, source="recent")
 
 
 async def cmd_mymovies(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -597,6 +643,7 @@ def main() -> None:
     app.add_handler(CommandHandler("genres", cmd_genres))
     app.add_handler(CommandHandler("test", cmd_test))
     app.add_handler(CommandHandler("swipe", cmd_swipe))
+    app.add_handler(CommandHandler("new", cmd_new))
     app.add_handler(CommandHandler("mymovies", cmd_mymovies))
     app.add_handler(CommandHandler("recommend", cmd_recommend))
     app.add_handler(CommandHandler("reset", cmd_reset))

@@ -49,6 +49,7 @@ def init_db() -> None:
                 archetype        TEXT,
                 quiz_scores      TEXT,
                 preferred_genres TEXT,
+                taste_weights    TEXT,
                 created_at       TEXT,
                 updated_at       TEXT
             );
@@ -71,7 +72,30 @@ def init_db() -> None:
         cols = [r["name"] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
         if "preferred_genres" not in cols:
             conn.execute("ALTER TABLE users ADD COLUMN preferred_genres TEXT")
+        if "taste_weights" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN taste_weights TEXT")
         conn.commit()
+
+
+def set_taste(user_id: int, weights: Dict[str, float]) -> None:
+    with _lock:
+        conn = _connect()
+        conn.execute(
+            "UPDATE users SET taste_weights=?, updated_at=? WHERE user_id=?",
+            (json.dumps(weights), _now(), user_id),
+        )
+        conn.commit()
+
+
+def get_taste(user_id: int) -> Dict[str, float]:
+    with _lock:
+        conn = _connect()
+        row = conn.execute(
+            "SELECT taste_weights FROM users WHERE user_id=?", (user_id,)
+        ).fetchone()
+    if row and row["taste_weights"]:
+        return json.loads(row["taste_weights"])
+    return {}
 
 
 # --------------------------------------------------------------- users

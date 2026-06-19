@@ -154,6 +154,42 @@ class Recommender:
             random.shuffle(pool)
         return pool[:limit]
 
+    # --------------------------------------------------------------- новинки
+    def recent_pool(
+        self,
+        exclude_keys: Set[str] | None = None,
+        limit: int = 15,
+        page: int = 1,
+    ) -> List[dict]:
+        """Современные фильмы и новинки (последние ~2 года)."""
+        from datetime import date
+
+        exclude_keys = exclude_keys or set()
+        if self.uses_tmdb:
+            start = f"{date.today().year - 2}-01-01"
+            try:
+                res = self._discover(
+                    {
+                        "primary_release_date.gte": start,
+                        "primary_release_date.lte": date.today().isoformat(),
+                        "with_release_type": "2|3",
+                        "sort_by": "popularity.desc",
+                        "vote_count.gte": 30,
+                    },
+                    page,
+                )
+            except Exception as exc:  # noqa: BLE001
+                print(f"[recommender] TMDB новинки: {exc}")
+                res = []
+            return [m for m in res if m["key"] not in exclude_keys][:limit]
+
+        # Локально новинок нет — отдаём самое свежее из каталога (классика)
+        if page > 1:
+            return []
+        pool = [m for m in self._local_all() if m["key"] not in exclude_keys]
+        pool.sort(key=lambda m: (m.get("year") or 0), reverse=True)
+        return pool[:limit]
+
     # --------------------------------------------------------------- рекомендации
     def recommend(
         self,
