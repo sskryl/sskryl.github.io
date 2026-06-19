@@ -46,6 +46,17 @@ echo.
 echo Token saved to token.txt
 echo.
 
+REM --- Ask for the TMDB key on first run (optional) ---
+if exist tmdb.txt goto deps
+echo (Optional) TMDB key unlocks thousands of movies, anime and new releases.
+echo Get a free key at https://www.themoviedb.org/settings/api
+echo Or just press Enter to skip and use the free built-in catalog.
+echo.
+set "TMDB="
+set /p TMDB="TMDB API key (or Enter to skip): "
+>tmdb.txt echo^|set /p=%TMDB%
+echo.
+
 :deps
 echo Installing dependencies ^(first run only, may take a minute^)...
 %PY% -m pip install --upgrade pip

@@ -37,9 +37,21 @@ def _tmdb_movie(m: dict) -> dict:
     }
 
 
+def _read_tmdb_key() -> str:
+    """Ключ TMDB: из переменной окружения или из файла bot/tmdb.txt."""
+    key = (os.getenv("TMDB_API_KEY") or "").strip()
+    if key:
+        return key
+    path = os.path.join(os.path.dirname(__file__), "tmdb.txt")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            return f.read().strip()
+    return ""
+
+
 class Recommender:
     def __init__(self) -> None:
-        self.api_key = (os.getenv("TMDB_API_KEY") or "").strip()
+        self.api_key = _read_tmdb_key()
         self.language = os.getenv("TMDB_LANGUAGE", "ru-RU")
 
     @property
