@@ -1,13 +1,12 @@
-"""Telegram-бот «КиноВольт»: психотест + «Тиндер для фильмов» с памятью вкуса.
+"""Telegram-бот «КиноВольт»: подбор фильмов с памятью вкуса.
 
-Путь пользователя:
-  /start → психотест → психотип → «Тиндер» (❤️/👎 по карточкам) →
-  личный список «Мои фильмы» + умная подборка, которая учится на оценках
-  и не предлагает уже оценённое.
+Воронка (мягкая):
+  /start → выбор жанров (включая мультфильмы и аниме)
+         → «Тиндер» по фильмам (❤️/👎)
+         → когда пользователь вовлёкся, бот НЕНАВЯЗЧИВО предлагает мини-психотест
+         → личный список «Мои фильмы» + умная подборка
 
-Профиль и оценки хранятся в SQLite (storage.py) — бот всё помнит между запусками.
-
-Запуск: см. README.md / run_windows.bat
+Профиль и оценки хранятся в SQLite (storage.py).
 """
 from __future__ import annotations
 
@@ -26,6 +25,7 @@ from telegram.ext import (
     ContextTypes,
 )
 
+import genres as genres_mod
 import quiz
 import storage
 from catalog import genre_name
@@ -40,7 +40,8 @@ logger = logging.getLogger(__name__)
 
 recommender = Recommender()
 
-DECK_BATCH = 12  # сколько карточек подгружать за раз
+DECK_BATCH = 12      # сколько карточек подгружать за раз
+OFFER_AFTER = 6      # после скольких свайпов мягко предложить психотест
 
 
 def _read_token() -> str:
@@ -57,32 +58,46 @@ def _read_token() -> str:
 # =====================================================================
 #  Клавиатуры и тексты
 # =====================================================================
+WELCOME = (
+    "🎬 <b>Привет, {name}!</b>\n"
+    "Я КиноВольт — помогу выбрать, что посмотреть сегодня.\n\n"
+    "Для начала отметь жанры, которые тебе нравятся 👇\n"
+    "<i>(можно несколько — или сразу жми «Готово», чтобы смотреть всё подряд)</i>"
+)
+
+
+def genre_select_kb(selected: set) -> InlineKeyboardMarkup:
+    rows, row = [], []
+    for g in genres_mod.MAIN_GENRES:
+        mark = "✅ " if g["key"] in selected else ""
+        row.append(
+            InlineKeyboardButton(
+                f"{mark}{g['emoji']} {g['label']}", callback_data=f"g:toggle:{g['key']}"
+            )
+        )
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append([InlineKeyboardButton("Готово ✅", callback_data="g:done")])
+    return InlineKeyboardMarkup(rows)
+
+
 def main_menu_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("🎬 Оценивать фильмы (Тиндер)", callback_data="menu:swipe")],
+            [InlineKeyboardButton("🎬 Листать фильмы", callback_data="menu:swipe")],
+            [
+                InlineKeyboardButton("🎚 Жанры", callback_data="menu:genres"),
+                InlineKeyboardButton("🧠 Психотест", callback_data="menu:test"),
+            ],
             [
                 InlineKeyboardButton("❤️ Мои фильмы", callback_data="menu:mymovies"),
                 InlineKeyboardButton("✨ Подборка", callback_data="menu:recommend"),
             ],
-            [InlineKeyboardButton("🧠 Психотест заново", callback_data="menu:test")],
         ]
     )
-
-
-def quiz_question_kb(q_idx: int) -> InlineKeyboardMarkup:
-    options = quiz.QUESTIONS[q_idx]["options"]
-    rows = [
-        [InlineKeyboardButton(opt["label"], callback_data=f"ans:{q_idx}:{i}")]
-        for i, opt in enumerate(options)
-    ]
-    return InlineKeyboardMarkup(rows)
-
-
-def quiz_question_text(q_idx: int) -> str:
-    total = len(quiz.QUESTIONS)
-    q = quiz.QUESTIONS[q_idx]
-    return f"<b>Вопрос {q_idx + 1}/{total}</b>\n\n{html.escape(q['text'])}"
 
 
 def swipe_kb(key: str) -> InlineKeyboardMarkup:
@@ -95,6 +110,21 @@ def swipe_kb(key: str) -> InlineKeyboardMarkup:
             [InlineKeyboardButton("🛑 Хватит, покажи подборку", callback_data="sw:stop")],
         ]
     )
+
+
+def quiz_question_kb(q_idx: int) -> InlineKeyboardMarkup:
+    options = quiz.QUESTIONS[q_idx]["options"]
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton(opt["label"], callback_data=f"ans:{q_idx}:{i}")]
+            for i, opt in enumerate(options)
+        ]
+    )
+
+
+def quiz_question_text(q_idx: int) -> str:
+    total = len(quiz.QUESTIONS)
+    return f"<b>Вопрос {q_idx + 1}/{total}</b>\n\n{html.escape(quiz.QUESTIONS[q_idx]['text'])}"
 
 
 def movie_caption(movie: dict) -> str:
@@ -111,17 +141,6 @@ def movie_caption(movie: dict) -> str:
     return f"<b>{title}</b>{year}{rating}{gline}{over}{free}"
 
 
-WELCOME = (
-    "🎬 <b>Привет, {name}! Я КиноВольт.</b>\n\n"
-    "Я помогу найти, что посмотреть, и запомню твой вкус.\n\n"
-    "Как это работает:\n"
-    "1️⃣ Короткий психотест — пойму твой характер и настроение\n"
-    "2️⃣ «Тиндер для фильмов» — оцениваешь карточки ❤️/👎\n"
-    "3️⃣ Я собираю твой личный список и подбираю фильмы всё точнее\n\n"
-    "Начнём с теста?"
-)
-
-
 # =====================================================================
 #  Команды
 # =====================================================================
@@ -129,27 +148,24 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     storage.upsert_user(user.id, user.first_name or "", user.username or "")
     context.user_data.clear()
+    context.user_data["genre_sel"] = set(storage.get_preferred_genres(user.id))
     await update.message.reply_text(
         WELCOME.format(name=html.escape(user.first_name or "")),
         parse_mode=ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup(
-            [
-                [InlineKeyboardButton("🧠 Пройти психотест", callback_data="quiz:start")],
-                [InlineKeyboardButton("🎬 Сразу к фильмам", callback_data="menu:swipe")],
-            ]
-        ),
+        reply_markup=genre_select_kb(context.user_data["genre_sel"]),
     )
 
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "Команды:\n"
-        "/start — начать заново\n"
-        "/test — пройти психотест\n"
-        "/swipe — оценивать фильмы (Тиндер)\n"
+        "/start — начать заново (выбор жанров)\n"
+        "/swipe — листать и оценивать фильмы\n"
+        "/genres — изменить любимые жанры\n"
         "/mymovies — мой список (что понравилось)\n"
         "/recommend — персональная подборка\n"
-        "/reset — очистить мой профиль"
+        "/test — психотест (точнее подбор)\n"
+        "/reset — очистить профиль"
     )
 
 
@@ -158,7 +174,222 @@ async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 # =====================================================================
-#  Психотест
+#  Выбор жанров (старт воронки)
+# =====================================================================
+async def open_genre_selector(context, chat_id, user_id, text) -> None:
+    context.user_data["genre_sel"] = set(storage.get_preferred_genres(user_id))
+    await context.bot.send_message(
+        chat_id, text, parse_mode=ParseMode.HTML,
+        reply_markup=genre_select_kb(context.user_data["genre_sel"]),
+    )
+
+
+async def cmd_genres(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await open_genre_selector(
+        context, update.effective_chat.id, update.effective_user.id,
+        "Отметь жанры, которые тебе нравятся:",
+    )
+
+
+async def on_genre_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    key = query.data.split(":", 2)[2]
+    sel = context.user_data.get("genre_sel")
+    if sel is None:
+        sel = set(storage.get_preferred_genres(update.effective_user.id))
+    if key in sel:
+        sel.discard(key)
+    else:
+        sel.add(key)
+    context.user_data["genre_sel"] = sel
+    await query.answer()
+    try:
+        await query.edit_message_reply_markup(genre_select_kb(sel))
+    except Exception:  # noqa: BLE001
+        pass
+
+
+async def on_genre_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    user_id = update.effective_user.id
+    sel = context.user_data.get("genre_sel") or set()
+    storage.set_preferred_genres(user_id, list(sel))
+    chosen = ", ".join(genres_mod.label(k) for k in sel) if sel else "все жанры"
+    await query.edit_message_text(
+        f"Отлично! Показываю: <b>{html.escape(chosen)}</b>.\nЛистай и отмечай ❤️/👎 👇",
+        parse_mode=ParseMode.HTML,
+    )
+    await start_deck(context, query.message.chat_id, user_id)
+
+
+# =====================================================================
+#  «Тиндер для фильмов»
+# =====================================================================
+def get_effective_genres(user_id: int) -> list:
+    user = storage.get_user(user_id)
+    quiz_scores = user.get("quiz_scores", {}) if user else {}
+    affinity = storage.get_genre_affinity(user_id)
+    return effective_genres(quiz_scores, affinity, top_n=4)
+
+
+def get_user_categories(user_id: int) -> list:
+    """Категории для подбора: выбранные жанры, иначе — выученные из теста/оценок."""
+    prefs = storage.get_preferred_genres(user_id)
+    if prefs:
+        return prefs
+    return [str(g) for g in get_effective_genres(user_id)]
+
+
+async def start_deck(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: int) -> None:
+    categories = get_user_categories(user_id)
+    exclude = storage.get_rated_keys(user_id)
+    context.user_data["deck_categories"] = categories
+    context.user_data["deck_page"] = 1
+    context.user_data["deck_map"] = {}
+    context.user_data["swipes_session"] = 0
+    await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
+    pool = await asyncio.to_thread(
+        recommender.candidate_pool, categories, exclude, DECK_BATCH, 1
+    )
+    context.user_data["deck"] = pool
+    if not pool:
+        await context.bot.send_message(
+            chat_id,
+            "Под этот выбор фильмов не нашлось 😕\n"
+            "Измени жанры (/genres) или загляни в ❤️ /mymovies.",
+            reply_markup=main_menu_kb(),
+        )
+        return
+    await send_next_card(context, chat_id, user_id)
+
+
+async def send_next_card(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: int) -> None:
+    deck = context.user_data.get("deck", [])
+    if not deck:
+        categories = context.user_data.get("deck_categories", [])
+        page = context.user_data.get("deck_page", 1) + 1
+        exclude = storage.get_rated_keys(user_id)
+        more = await asyncio.to_thread(
+            recommender.candidate_pool, categories, exclude, DECK_BATCH, page
+        )
+        context.user_data["deck_page"] = page
+        deck.extend(more)
+        if not deck:
+            await finish_deck(context, chat_id, user_id)
+            return
+    movie = deck.pop(0)
+    await send_card(context, chat_id, movie)
+
+
+async def send_card(context: ContextTypes.DEFAULT_TYPE, chat_id: int, movie: dict) -> None:
+    context.user_data.setdefault("deck_map", {})[movie["key"]] = movie
+    caption = movie_caption(movie)
+    kb = swipe_kb(movie["key"])
+    poster = movie.get("poster")
+    try:
+        if poster:
+            await context.bot.send_photo(
+                chat_id, poster, caption=caption, parse_mode=ParseMode.HTML, reply_markup=kb
+            )
+        else:
+            await context.bot.send_message(
+                chat_id, caption, parse_mode=ParseMode.HTML, reply_markup=kb
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Постер не отправился (%s): %s", poster, exc)
+        await context.bot.send_message(
+            chat_id, caption, parse_mode=ParseMode.HTML, reply_markup=kb
+        )
+
+
+async def offer_quiz(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> None:
+    await context.bot.send_message(
+        chat_id,
+        "🧠 А ты уже распробовал! Хочешь, чтобы я попадал ещё точнее?\n"
+        "Пройди мини-тест характера — это меньше минуты. Или просто листай дальше.",
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("🧠 Пройти мини-тест", callback_data="quiz:start")],
+                [InlineKeyboardButton("👉 Продолжить листать", callback_data="sw:more")],
+            ]
+        ),
+    )
+
+
+async def on_swipe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    user_id = update.effective_user.id
+    _, action, key = query.data.split(":", 2)
+
+    movie = context.user_data.get("deck_map", {}).pop(key, None)
+    if movie is None:
+        await query.answer("Эта карточка устарела, листаем дальше")
+        await send_next_card(context, query.message.chat_id, user_id)
+        return
+
+    value = storage.LIKE if action == "like" else storage.DISLIKE
+    storage.add_rating(user_id, movie, value)
+    verdict = "❤️ В избранном" if action == "like" else "👎 Не интересно"
+    await query.answer(verdict)
+    try:
+        new_caption = movie_caption(movie) + f"\n\n<b>{verdict}</b>"
+        if query.message.photo:
+            await query.edit_message_caption(new_caption, parse_mode=ParseMode.HTML)
+        else:
+            await query.edit_message_text(new_caption, parse_mode=ParseMode.HTML)
+    except Exception:  # noqa: BLE001
+        pass
+
+    # Мягкое предложение психотеста — только когда пользователь вовлёкся
+    sess = context.user_data.get("swipes_session", 0) + 1
+    context.user_data["swipes_session"] = sess
+    user = storage.get_user(user_id)
+    quiz_done = bool(user and user.get("archetype"))
+    if (not quiz_done) and (not context.user_data.get("offered_quiz")) and sess >= OFFER_AFTER:
+        context.user_data["offered_quiz"] = True
+        await offer_quiz(context, query.message.chat_id)
+        return
+
+    await send_next_card(context, query.message.chat_id, user_id)
+
+
+async def on_swipe_more(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    try:
+        await query.edit_message_reply_markup(None)
+    except Exception:  # noqa: BLE001
+        pass
+    await send_next_card(context, query.message.chat_id, update.effective_user.id)
+
+
+async def on_swipe_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    try:
+        await query.edit_message_reply_markup(None)
+    except Exception:  # noqa: BLE001
+        pass
+    await finish_deck(context, query.message.chat_id, update.effective_user.id)
+
+
+async def finish_deck(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: int) -> None:
+    context.user_data.pop("deck", None)
+    context.user_data.pop("deck_map", None)
+    stats = storage.get_stats(user_id)
+    await context.bot.send_message(
+        chat_id,
+        f"📊 Готово! Оценено фильмов: <b>{stats['total']}</b> "
+        f"(❤️ {stats['liked']} · 👎 {stats['disliked']}).\n\n"
+        f"Я запомнил твой вкус. Что дальше?",
+        parse_mode=ParseMode.HTML,
+        reply_markup=main_menu_kb(),
+    )
+
+
+# =====================================================================
+#  Психотест (предлагается мягко, по ходу)
 # =====================================================================
 async def start_quiz(query, context: ContextTypes.DEFAULT_TYPE) -> None:
     context.user_data["answers"] = []
@@ -213,145 +444,18 @@ async def finish_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     archetype = quiz.detect_archetype(scores)
     storage.set_quiz_result(user_id, archetype["key"], scores)
 
-    genres = quiz.top_genres(scores, n=3)
-    genre_titles = ", ".join(genre_name(g) for g in genres if genre_name(g))
-    result = (
+    top = quiz.top_genres(scores, n=3)
+    genre_titles = ", ".join(genre_name(g) for g in top if genre_name(g))
+    await query.edit_message_text(
         f"✨ <b>Твой психотип: {html.escape(archetype['title'])}</b>\n\n"
         f"{html.escape(archetype['desc'])}\n\n"
         f"🎯 Любимые жанры: <b>{html.escape(genre_titles)}</b>\n\n"
-        f"Теперь — самое интересное. Оцени несколько фильмов ❤️/👎, "
-        f"и я подберу кино точно под тебя 👇"
+        f"Теперь подбор будет ещё точнее. Продолжаем 👇",
+        parse_mode=ParseMode.HTML,
     )
-    await query.edit_message_text(result, parse_mode=ParseMode.HTML)
     context.user_data.pop("answers", None)
     context.user_data.pop("q", None)
     await start_deck(context, query.message.chat_id, user_id)
-
-
-# =====================================================================
-#  «Тиндер для фильмов»
-# =====================================================================
-def get_effective_genres(user_id: int) -> list:
-    user = storage.get_user(user_id)
-    quiz_scores = user.get("quiz_scores", {}) if user else {}
-    affinity = storage.get_genre_affinity(user_id)
-    return effective_genres(quiz_scores, affinity, top_n=4)
-
-
-async def start_deck(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: int) -> None:
-    genres = get_effective_genres(user_id)
-    exclude = storage.get_rated_keys(user_id)
-    context.user_data["deck_genres"] = genres
-    context.user_data["deck_page"] = 1
-    context.user_data["deck_map"] = {}
-    await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
-    pool = await asyncio.to_thread(
-        recommender.candidate_pool, genres, exclude, DECK_BATCH, 1
-    )
-    context.user_data["deck"] = pool
-    if not pool:
-        await context.bot.send_message(
-            chat_id,
-            "Кажется, ты уже оценил все доступные фильмы! 🎉\n"
-            "Загляни в /mymovies или попробуй /recommend.",
-            reply_markup=main_menu_kb(),
-        )
-        return
-    await send_next_card(context, chat_id, user_id)
-
-
-async def send_next_card(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: int) -> None:
-    deck = context.user_data.get("deck", [])
-    if not deck:
-        # пробуем подгрузить ещё
-        genres = context.user_data.get("deck_genres", [])
-        page = context.user_data.get("deck_page", 1) + 1
-        exclude = storage.get_rated_keys(user_id)
-        more = await asyncio.to_thread(
-            recommender.candidate_pool, genres, exclude, DECK_BATCH, page
-        )
-        context.user_data["deck_page"] = page
-        deck.extend(more)
-        if not deck:
-            await finish_deck(context, chat_id, user_id)
-            return
-    movie = deck.pop(0)
-    await send_card(context, chat_id, movie)
-
-
-async def send_card(context: ContextTypes.DEFAULT_TYPE, chat_id: int, movie: dict) -> None:
-    """Отправляет карточку фильма с кнопками ❤️/👎 и регистрирует её."""
-    context.user_data.setdefault("deck_map", {})[movie["key"]] = movie
-    caption = movie_caption(movie)
-    kb = swipe_kb(movie["key"])
-    poster = movie.get("poster")
-    try:
-        if poster:
-            await context.bot.send_photo(
-                chat_id, poster, caption=caption, parse_mode=ParseMode.HTML, reply_markup=kb
-            )
-        else:
-            await context.bot.send_message(
-                chat_id, caption, parse_mode=ParseMode.HTML, reply_markup=kb
-            )
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Постер не отправился (%s): %s", poster, exc)
-        await context.bot.send_message(
-            chat_id, caption, parse_mode=ParseMode.HTML, reply_markup=kb
-        )
-
-
-async def on_swipe(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    user_id = update.effective_user.id
-    _, action, key = query.data.split(":", 2)
-
-    movie = context.user_data.get("deck_map", {}).pop(key, None)
-    if movie is None:
-        await query.answer("Эта карточка устарела, листаем дальше", show_alert=False)
-        await send_next_card(context, query.message.chat_id, user_id)
-        return
-
-    value = storage.LIKE if action == "like" else storage.DISLIKE
-    storage.add_rating(user_id, movie, value)
-    verdict = "❤️ В избранном" if action == "like" else "👎 Не интересно"
-    await query.answer(verdict)
-
-    # Фиксируем выбор на карточке и убираем кнопки
-    try:
-        new_caption = movie_caption(movie) + f"\n\n<b>{verdict}</b>"
-        if query.message.photo:
-            await query.edit_message_caption(new_caption, parse_mode=ParseMode.HTML)
-        else:
-            await query.edit_message_text(new_caption, parse_mode=ParseMode.HTML)
-    except Exception:  # noqa: BLE001
-        pass
-
-    await send_next_card(context, query.message.chat_id, user_id)
-
-
-async def on_swipe_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-    try:
-        await query.edit_message_reply_markup(None)
-    except Exception:  # noqa: BLE001
-        pass
-    await finish_deck(context, query.message.chat_id, update.effective_user.id)
-
-
-async def finish_deck(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: int) -> None:
-    context.user_data.pop("deck", None)
-    context.user_data.pop("deck_map", None)
-    stats = storage.get_stats(user_id)
-    text = (
-        f"📊 Готово! Оценено фильмов: <b>{stats['total']}</b> "
-        f"(❤️ {stats['liked']} · 👎 {stats['disliked']}).\n\n"
-        f"Я запомнил твой вкус. Что дальше?"
-    )
-    await context.bot.send_message(
-        chat_id, text, parse_mode=ParseMode.HTML, reply_markup=main_menu_kb()
-    )
 
 
 # =====================================================================
@@ -362,7 +466,7 @@ async def show_mymovies(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_i
     if not liked:
         await context.bot.send_message(
             chat_id,
-            "Твой список пока пуст. Оцени фильмы — те, что отметишь ❤️, попадут сюда.",
+            "Твой список пока пуст. Отмечай фильмы ❤️ — и они появятся здесь.",
             reply_markup=main_menu_kb(),
         )
         return
@@ -374,10 +478,9 @@ async def show_mymovies(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_i
             lines.append(f"• <a href=\"{html.escape(m['url'])}\">{title}</a>{year}")
         else:
             lines.append(f"• {title}{year}")
-    text = "❤️ <b>Мои фильмы</b> (понравились):\n\n" + "\n".join(lines)
     await context.bot.send_message(
         chat_id,
-        text,
+        "❤️ <b>Мои фильмы</b> (понравились):\n\n" + "\n".join(lines),
         parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
         reply_markup=main_menu_kb(),
@@ -385,11 +488,11 @@ async def show_mymovies(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_i
 
 
 async def show_recommendations(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: int) -> None:
-    genres = get_effective_genres(user_id)
+    categories = get_user_categories(user_id)
     exclude = storage.get_rated_keys(user_id)
     affinity = storage.get_genre_affinity(user_id)
     await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
-    recs = await asyncio.to_thread(recommender.recommend, genres, exclude, affinity, 5)
+    recs = await asyncio.to_thread(recommender.recommend, categories, exclude, affinity, 5)
     if not recs:
         await context.bot.send_message(
             chat_id,
@@ -397,15 +500,16 @@ async def show_recommendations(context: ContextTypes.DEFAULT_TYPE, chat_id: int,
             reply_markup=main_menu_kb(),
         )
         return
-    await context.bot.send_message(chat_id, "✨ <b>Персональная подборка</b> — оцени и её:",
-                                   parse_mode=ParseMode.HTML)
+    await context.bot.send_message(
+        chat_id, "✨ <b>Персональная подборка</b> — оцени и её:", parse_mode=ParseMode.HTML
+    )
     for movie in recs:
         await send_card(context, chat_id, movie)
 
 
 async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        "Очистить твой профиль (психотип и все оценки)?",
+        "Очистить твой профиль (жанры, психотип и все оценки)?",
         reply_markup=InlineKeyboardMarkup(
             [
                 [
@@ -418,7 +522,7 @@ async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 # =====================================================================
-#  Меню (callbacks) и обработчики кнопок
+#  Меню (callbacks)
 # =====================================================================
 async def on_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
@@ -429,6 +533,8 @@ async def on_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if action == "swipe":
         await start_deck(context, chat_id, user_id)
+    elif action == "genres":
+        await open_genre_selector(context, chat_id, user_id, "Отметь жанры, которые тебе нравятся:")
     elif action == "mymovies":
         await show_mymovies(context, chat_id, user_id)
     elif action == "recommend":
@@ -488,14 +594,18 @@ def main() -> None:
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(CommandHandler("menu", cmd_menu))
+    app.add_handler(CommandHandler("genres", cmd_genres))
     app.add_handler(CommandHandler("test", cmd_test))
     app.add_handler(CommandHandler("swipe", cmd_swipe))
     app.add_handler(CommandHandler("mymovies", cmd_mymovies))
     app.add_handler(CommandHandler("recommend", cmd_recommend))
     app.add_handler(CommandHandler("reset", cmd_reset))
 
+    app.add_handler(CallbackQueryHandler(on_genre_toggle, pattern=r"^g:toggle:"))
+    app.add_handler(CallbackQueryHandler(on_genre_done, pattern=r"^g:done$"))
     app.add_handler(CallbackQueryHandler(on_quiz_start, pattern=r"^quiz:start$"))
     app.add_handler(CallbackQueryHandler(on_answer, pattern=r"^ans:\d+:\d+$"))
+    app.add_handler(CallbackQueryHandler(on_swipe_more, pattern=r"^sw:more$"))
     app.add_handler(CallbackQueryHandler(on_swipe_stop, pattern=r"^sw:stop$"))
     app.add_handler(CallbackQueryHandler(on_swipe, pattern=r"^sw:(like|dislike):"))
     app.add_handler(CallbackQueryHandler(on_reset, pattern=r"^reset:(yes|no)$"))

@@ -94,7 +94,8 @@
     },
 
     genreName(id) {
-      const g = genreMap.get(id);
+      if (String(id) === "anime") return "Аниме";
+      const g = genreMap.get(Number(id));
       return g ? g.name : "";
     },
 
@@ -125,18 +126,30 @@
     },
 
     async getByGenre(genreId, page = 1) {
+      const isAnime = String(genreId) === "anime";
       if (this.hasTmdb()) {
-        const data = await tmdbFetch("/discover/movie", {
-          with_genres: genreId,
-          sort_by: "popularity.desc",
-          "vote_count.gte": 50,
-          page,
-        });
+        const params = isAnime
+          ? {
+              with_genres: 16,
+              with_original_language: "ja",
+              sort_by: "popularity.desc",
+              "vote_count.gte": 50,
+              page,
+            }
+          : {
+              with_genres: genreId,
+              sort_by: "popularity.desc",
+              "vote_count.gte": 50,
+              page,
+            };
+        const data = await tmdbFetch("/discover/movie", params);
         return { results: data.results.map(normTmdb), totalPages: data.total_pages };
       }
-      const all = catalog.movies
-        .map(normLocal)
-        .filter((m) => m.genres.includes(Number(genreId)));
+      // Локальный режим: аниме в public-domain каталоге нет
+      const gid = Number(genreId);
+      const all = isAnime
+        ? []
+        : catalog.movies.map(normLocal).filter((m) => m.genres.includes(gid));
       return { results: all, totalPages: 1 };
     },
 

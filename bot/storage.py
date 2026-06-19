@@ -43,13 +43,14 @@ def init_db() -> None:
         conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS users (
-                user_id     INTEGER PRIMARY KEY,
-                first_name  TEXT,
-                username    TEXT,
-                archetype   TEXT,
-                quiz_scores TEXT,
-                created_at  TEXT,
-                updated_at  TEXT
+                user_id          INTEGER PRIMARY KEY,
+                first_name       TEXT,
+                username         TEXT,
+                archetype        TEXT,
+                quiz_scores      TEXT,
+                preferred_genres TEXT,
+                created_at       TEXT,
+                updated_at       TEXT
             );
             CREATE TABLE IF NOT EXISTS ratings (
                 user_id    INTEGER,
@@ -66,10 +67,33 @@ def init_db() -> None:
             );
             """
         )
+        # Миграция для старых баз: добавить столбец, если его ещё нет
+        cols = [r["name"] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+        if "preferred_genres" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN preferred_genres TEXT")
         conn.commit()
 
 
 # --------------------------------------------------------------- users
+def set_preferred_genres(user_id: int, keys: List[str]) -> None:
+    with _lock:
+        conn = _connect()
+        conn.execute(
+            "UPDATE users SET preferred_genres=?, updated_at=? WHERE user_id=?",
+            (json.dumps(keys), _now(), user_id),
+        )
+        conn.commit()
+
+
+def get_preferred_genres(user_id: int) -> List[str]:
+    with _lock:
+        conn = _connect()
+        row = conn.execute(
+            "SELECT preferred_genres FROM users WHERE user_id=?", (user_id,)
+        ).fetchone()
+    if row and row["preferred_genres"]:
+        return json.loads(row["preferred_genres"])
+    return []
 def upsert_user(user_id: int, first_name: str = "", username: str = "") -> None:
     with _lock:
         conn = _connect()

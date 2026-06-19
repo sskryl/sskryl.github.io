@@ -123,9 +123,12 @@
           }" href="#/catalog/genre/${g.id}">${UI.esc(g.name)}</a>`
       )
       .join("");
+    const animeChip = `<a class="chip ${
+      String(activeId) === "anime" ? "is-active" : ""
+    }" href="#/catalog/genre/anime">🎌 Аниме</a>`;
     return `<div class="filters"><a class="chip ${
       !activeId ? "is-active" : ""
-    }" href="#/catalog">Все</a>${chips}</div>`;
+    }" href="#/catalog">Все</a>${chips}${animeChip}</div>`;
   }
 
   function renderCatalog() {
@@ -147,7 +150,7 @@
 
   function renderGenre(id) {
     setLoading();
-    const name = Api.genreName(Number(id)) || "Жанр";
+    const name = Api.genreName(id) || "Жанр";
     appEl.innerHTML = listMarkup("Жанр: " + name, null, genreFiltersHtml(id));
     list = {
       fetch: (p) => Api.getByGenre(id, p),
