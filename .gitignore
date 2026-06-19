@@ -6,6 +6,7 @@ __pycache__/
 venv/
 env/
 .env
+bot/token.txt
 *.log
 
 # OS / editors

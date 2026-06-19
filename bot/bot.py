@@ -214,13 +214,31 @@ async def send_movie(context: ContextTypes.DEFAULT_TYPE, chat_id: int, movie: di
         )
 
 
+def _read_token() -> str:
+    """Берёт токен из переменной окружения или из файла bot/token.txt.
+
+    token.txt удобен для запуска на своём компьютере (его создаёт run_windows.bat).
+    Файл добавлен в .gitignore и в репозиторий не попадает.
+    """
+    token = (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip()
+    if token:
+        return token
+    path = os.path.join(os.path.dirname(__file__), "token.txt")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            return f.read().strip()
+    return ""
+
+
 # ------------------------------------------------------------------- запуск
 def main() -> None:
-    token = (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip()
+    token = _read_token()
     if not token:
         raise SystemExit(
-            "❌ Не задан TELEGRAM_BOT_TOKEN. Скопируйте .env.example в .env и впишите токен бота "
-            "(получить у @BotFather)."
+            "❌ Токен бота не найден.\n"
+            "На Windows проще всего: дважды кликните bot/run_windows.bat — он спросит токен.\n"
+            "Либо создайте файл bot/token.txt с токеном, либо задайте переменную "
+            "окружения TELEGRAM_BOT_TOKEN (токен выдаёт @BotFather)."
         )
 
     app = Application.builder().token(token).build()
