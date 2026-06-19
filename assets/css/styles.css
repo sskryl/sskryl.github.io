@@ -361,3 +361,20 @@ button { font-family: inherit; cursor: pointer; }
 .quiz__result-emoji { font-size: 60px; }
 .quiz__desc { color: var(--text-dim); font-size: 16px; margin: 14px 0; }
 .quiz__genres { margin-bottom: 24px; }
+
+/* ---- Лайк/дизлайк прямо на карточке ---- */
+.card__quick { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 6px; z-index: 3; opacity: 0; transform: translateY(4px); transition: opacity 0.18s, transform 0.18s; }
+.card__poster:hover .card__quick { opacity: 1; transform: none; }
+.card--rated .card__quick { opacity: 1; transform: none; }
+.card__qbtn { width: 30px; height: 30px; border-radius: 50%; border: none; background: rgba(0,0,0,0.7); color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.15s, background 0.15s; }
+.card__qbtn:hover { transform: scale(1.15); }
+.card__qbtn--yes.is-on { background: var(--green); }
+.card__qbtn--no.is-on { background: var(--accent); }
+@media (hover: none) { .card__quick { opacity: 1; transform: none; } }
+
+/* ---- Оценка в окне фильма ---- */
+.detail__rate { display: flex; gap: 10px; margin: 6px 0 2px; flex-wrap: wrap; }
+.detail__rbtn { padding: 9px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-3); color: var(--text); font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.15s; }
+.detail__rbtn:hover { border-color: var(--text-mute); }
+.detail__rbtn--yes.is-on { background: var(--green); border-color: var(--green); color: #fff; }
+.detail__rbtn--no.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }

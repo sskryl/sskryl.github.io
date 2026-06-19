@@ -540,6 +540,21 @@
         }
         return;
       }
+      const cardRate = e.target.closest("[data-card-rate]");
+      if (cardRate) {
+        const id = cardRate.getAttribute("data-rid");
+        const m = UI.movie(id);
+        if (m) {
+          const liked = cardRate.getAttribute("data-card-rate") === "like";
+          Taste.rate(m, liked);
+          document.querySelectorAll('[data-card-rate][data-rid="' + id + '"]').forEach((btn) => {
+            btn.classList.toggle("is-on", (btn.getAttribute("data-card-rate") === "like") === liked);
+          });
+          const cardEl = cardRate.closest(".card");
+          if (cardEl) cardEl.classList.add("card--rated");
+        }
+        return;
+      }
       const trigger = e.target.closest("[data-movie]");
       if (trigger) {
         openMovie(trigger.getAttribute("data-movie"));

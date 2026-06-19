@@ -8,6 +8,24 @@
   const HISTORY_KEY = "cinema:history";
   const HISTORY_LIMIT = 20;
 
+  // Реестр отрисованных фильмов — чтобы по id с карточки достать объект
+  // (нужно для оценки ❤️/👎 прямо на карточке).
+  const reg = new Map();
+  function register(m) { if (m && m.id != null) reg.set(String(m.id), m); }
+
+  function ratedState(id) {
+    if (!window.Taste) return 0;
+    return window.Taste.getRatings()[id] || 0;
+  }
+  function quickRate(movie) {
+    const st = ratedState(movie.id);
+    return `
+      <div class="card__quick">
+        <button class="card__qbtn card__qbtn--no ${st === -1 ? "is-on" : ""}" data-card-rate="dislike" data-rid="${esc(movie.id)}" aria-label="Не нравится">👎</button>
+        <button class="card__qbtn card__qbtn--yes ${st === 1 ? "is-on" : ""}" data-card-rate="like" data-rid="${esc(movie.id)}" aria-label="Нравится">❤</button>
+      </div>`;
+  }
+
   function esc(s) {
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;")
@@ -27,17 +45,20 @@
 
   // ----- Карточка ------------------------------------------------------------
   function card(movie) {
+    register(movie);
     const genres = Api.genreNames(movie.genres, 2).join(" • ");
     const hasPoster = !!movie.poster;
     const ratingBadge = movie.rating ? `<span class="card__rating">★ ${esc(movie.rating)}</span>` : "";
     const freeBadge = movie.free ? `<span class="card__free">free</span>` : "";
+    const rated = ratedState(movie.id) ? "card--rated" : "";
     return `
-      <article class="card" data-movie="${esc(movie.id)}" tabindex="0" role="button" aria-label="${esc(movie.title)}">
+      <article class="card ${rated}" data-movie="${esc(movie.id)}" tabindex="0" role="button" aria-label="${esc(movie.title)}">
         <div class="card__poster ${hasPoster ? "" : "card__poster--empty"}">
           ${hasPoster ? poster(movie) : esc(movie.title)}
           ${ratingBadge}${freeBadge}
           <div class="card__overlay"><span class="card__genres">${esc(genres)}</span></div>
           <span class="card__play">▶</span>
+          ${quickRate(movie)}
         </div>
         <div class="card__body">
           <h3 class="card__title">${esc(movie.title)}</h3>
@@ -168,6 +189,8 @@
 
   // ----- Страница фильма -----------------------------------------------------
   function detail(movie, similar) {
+    register(movie);
+    const st = ratedState(movie.id);
     const genres = Api.genreNames(movie.genres, 6).map((g) => `<span class="badge">${esc(g)}</span>`).join("");
     const facts = [];
     if (movie.year) facts.push(`<li><b>Год:</b> ${esc(movie.year)}</li>`);
@@ -195,6 +218,10 @@
               ${movie.rating ? `<span class="badge badge--rating">★ ${esc(movie.rating)}</span>` : ""}
               ${movie.free ? `<span class="badge badge--free">✓ Бесплатно</span>` : ""}
               ${genres}
+            </div>
+            <div class="detail__rate">
+              <button class="detail__rbtn detail__rbtn--yes ${st === 1 ? "is-on" : ""}" data-card-rate="like" data-rid="${esc(movie.id)}">❤️ Нравится</button>
+              <button class="detail__rbtn detail__rbtn--no ${st === -1 ? "is-on" : ""}" data-card-rate="dislike" data-rid="${esc(movie.id)}">👎 Не нравится</button>
             </div>
             <p class="detail__overview">${esc(movie.overview || "Описание недоступно.")}</p>
             <ul class="detail__facts">${facts.join("")}</ul>
@@ -227,5 +254,6 @@
     card, grid, row, section, heroSlider, tgBanner, empty,
     skeletonHome, skeletonGrid, skeletonRow,
     detail, getHistory, addToHistory, esc,
+    movie: (id) => reg.get(String(id)),
   };
 })();
