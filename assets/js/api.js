@@ -11,13 +11,13 @@
   const TMDB_BASE = "https://api.themoviedb.org/3";
   const IMG_POSTER = "https://image.tmdb.org/t/p/w500";
   const IMG_BACKDROP = "https://image.tmdb.org/t/p/w1280";
+  const IMG_PROFILE = "https://image.tmdb.org/t/p/w185";
   const ARCHIVE_IMG = "https://archive.org/services/img/";
   const ARCHIVE_EMBED = "https://archive.org/embed/";
 
   let catalog = { genres: [], movies: [] };
-  let genreMap = new Map(); // id -> {name, slug}
+  let genreMap = new Map();
 
-  // ----- Нормализация локального фильма -------------------------------------
   function normLocal(m) {
     return {
       id: m.id,
@@ -35,11 +35,11 @@
       backdrop: null,
       archiveId: m.archiveId || null,
       trailerYt: m.trailerYt || null,
+      cast: [],
       free: !!m.archiveId,
     };
   }
 
-  // ----- Нормализация фильма из TMDB ----------------------------------------
   function normTmdb(m) {
     return {
       id: "tmdb:" + m.id,
@@ -58,6 +58,7 @@
       backdrop: m.backdrop_path ? IMG_BACKDROP + m.backdrop_path : null,
       archiveId: null,
       trailerYt: null,
+      cast: [],
       free: false,
     };
   }
@@ -72,7 +73,10 @@
     return res.json();
   }
 
-  // ----- Публичный API ------------------------------------------------------
+  function localPage(list) {
+    return { results: list, totalPages: 1 };
+  }
+
   const Api = {
     hasTmdb() {
       return TMDB_KEY.length > 0;
@@ -100,65 +104,94 @@
     },
 
     genreNames(ids, limit = 3) {
-      return (ids || [])
-        .map((id) => this.genreName(id))
-        .filter(Boolean)
-        .slice(0, limit);
+      return (ids || []).map((id) => this.genreName(id)).filter(Boolean).slice(0, limit);
     },
 
-    findGenreBySlug(slug) {
-      return catalog.genres.find((g) => g.slug === slug) || null;
-    },
-
-    // Бесплатные (встраиваемые) фильмы — всегда из локального каталога
     getFreeMovies() {
       return catalog.movies.map(normLocal).filter((m) => m.free);
     },
 
-    // Популярное: TMDB при наличии ключа, иначе локальный каталог
+    // ---- Готовые подборки ---------------------------------------------------
+    async getTrending(page = 1) {
+      if (this.hasTmdb()) {
+        const d = await tmdbFetch("/trending/movie/week", { page });
+        return { results: d.results.map(normTmdb), totalPages: d.total_pages };
+      }
+      const all = catalog.movies.map(normLocal).sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      return localPage(all);
+    },
+
+    async getNewReleases(page = 1) {
+      if (this.hasTmdb()) {
+        const today = new Date();
+        const from = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
+        const d = await tmdbFetch("/discover/movie", {
+          sort_by: "popularity.desc",
+          "primary_release_date.gte": from.toISOString().slice(0, 10),
+          "primary_release_date.lte": today.toISOString().slice(0, 10),
+          "vote_count.gte": 30,
+          page,
+        });
+        return { results: d.results.map(normTmdb), totalPages: d.total_pages };
+      }
+      const all = catalog.movies.map(normLocal).sort((a, b) => (b.year || 0) - (a.year || 0));
+      return localPage(all);
+    },
+
+    async getTopRated(page = 1) {
+      if (this.hasTmdb()) {
+        const d = await tmdbFetch("/movie/top_rated", { page });
+        return { results: d.results.map(normTmdb), totalPages: d.total_pages };
+      }
+      const all = catalog.movies.map(normLocal).sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      return localPage(all);
+    },
+
     async getPopular(page = 1) {
       if (this.hasTmdb()) {
-        const data = await tmdbFetch("/movie/popular", { page });
-        return { results: data.results.map(normTmdb), totalPages: data.total_pages };
+        const d = await tmdbFetch("/movie/popular", { page });
+        return { results: d.results.map(normTmdb), totalPages: d.total_pages };
       }
-      const all = catalog.movies.map(normLocal);
-      return { results: all, totalPages: 1 };
+      return localPage(catalog.movies.map(normLocal));
+    },
+
+    // ---- Каталог с фильтрами ------------------------------------------------
+    async discover({ genre, year, sort, minRating, page = 1 } = {}) {
+      const isAnime = String(genre) === "anime";
+      if (this.hasTmdb()) {
+        const params = { sort_by: sort || "popularity.desc", "vote_count.gte": 40, page };
+        if (isAnime) {
+          params.with_genres = 16;
+          params.with_original_language = "ja";
+        } else if (genre) {
+          params.with_genres = genre;
+        }
+        if (year) params.primary_release_year = year;
+        if (minRating) params["vote_average.gte"] = minRating;
+        const d = await tmdbFetch("/discover/movie", params);
+        return { results: d.results.map(normTmdb), totalPages: d.total_pages };
+      }
+      // Локальный режим
+      let list = catalog.movies.map(normLocal);
+      if (isAnime) list = [];
+      else if (genre) list = list.filter((m) => m.genres.includes(Number(genre)));
+      if (year) list = list.filter((m) => String(m.year) === String(year));
+      if (minRating) list = list.filter((m) => (m.rating || 0) >= Number(minRating));
+      if (sort === "release_date.desc") list.sort((a, b) => (b.year || 0) - (a.year || 0));
+      else if (sort === "vote_average.desc") list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      return localPage(list);
     },
 
     async getByGenre(genreId, page = 1) {
-      const isAnime = String(genreId) === "anime";
-      if (this.hasTmdb()) {
-        const params = isAnime
-          ? {
-              with_genres: 16,
-              with_original_language: "ja",
-              sort_by: "popularity.desc",
-              "vote_count.gte": 50,
-              page,
-            }
-          : {
-              with_genres: genreId,
-              sort_by: "popularity.desc",
-              "vote_count.gte": 50,
-              page,
-            };
-        const data = await tmdbFetch("/discover/movie", params);
-        return { results: data.results.map(normTmdb), totalPages: data.total_pages };
-      }
-      // Локальный режим: аниме в public-domain каталоге нет
-      const gid = Number(genreId);
-      const all = isAnime
-        ? []
-        : catalog.movies.map(normLocal).filter((m) => m.genres.includes(gid));
-      return { results: all, totalPages: 1 };
+      return this.discover({ genre: genreId, page });
     },
 
     async search(query, page = 1) {
-      const q = query.trim();
-      if (!q) return { results: [], totalPages: 1 };
+      const q = (query || "").trim();
+      if (!q) return localPage([]);
       if (this.hasTmdb()) {
-        const data = await tmdbFetch("/search/movie", { query: q, page });
-        return { results: data.results.map(normTmdb), totalPages: data.total_pages };
+        const d = await tmdbFetch("/search/movie", { query: q, page });
+        return { results: d.results.map(normTmdb), totalPages: d.total_pages };
       }
       const low = q.toLowerCase();
       const all = catalog.movies
@@ -168,7 +201,7 @@
             m.title.toLowerCase().includes(low) ||
             m.originalTitle.toLowerCase().includes(low)
         );
-      return { results: all, totalPages: 1 };
+      return localPage(all);
     },
 
     async getMovie(id) {
@@ -178,12 +211,15 @@
           append_to_response: "videos,credits",
         });
         const movie = normTmdb(data);
-        // Режиссёр
-        if (data.credits && data.credits.crew) {
-          const dir = data.credits.crew.find((c) => c.job === "Director");
+        if (data.credits) {
+          const dir = (data.credits.crew || []).find((c) => c.job === "Director");
           if (dir) movie.director = dir.name;
+          movie.cast = (data.credits.cast || []).slice(0, 10).map((c) => ({
+            name: c.name,
+            character: c.character,
+            photo: c.profile_path ? IMG_PROFILE + c.profile_path : null,
+          }));
         }
-        // Трейлер (YouTube)
         if (data.videos && data.videos.results) {
           const yt = data.videos.results.find(
             (v) => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser")
@@ -199,13 +235,12 @@
     async getSimilar(movie) {
       if (movie.source === "tmdb" && this.hasTmdb()) {
         try {
-          const data = await tmdbFetch("/movie/" + movie.tmdbId + "/similar", { page: 1 });
-          return data.results.map(normTmdb).slice(0, 12);
+          const d = await tmdbFetch("/movie/" + movie.tmdbId + "/similar", { page: 1 });
+          return d.results.map(normTmdb).slice(0, 12);
         } catch (e) {
           return [];
         }
       }
-      // Локально: фильмы с пересечением жанров
       return catalog.movies
         .map(normLocal)
         .filter((m) => m.id !== movie.id && m.genres.some((g) => movie.genres.includes(g)))
