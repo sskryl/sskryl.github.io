@@ -1,3 +1,5 @@
-# Корневой файл для платформ, которые ищут зависимости в корне репозитория
-# (Heroku/Railway Python-buildpack и т.п.). Реальный список — в bot/.
--r bot/requirements.txt
+# Зависимости serverless-функции веб-API на Vercel (api/index.py).
+# Намеренно без python-telegram-bot — функции нужен только API + общая база.
+flask==3.0.3
+python-dotenv==1.0.1
+libsql-experimental

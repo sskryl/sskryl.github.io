@@ -1,12 +1,13 @@
-"""Постоянное хранилище профилей пользователей (SQLite).
+"""Постоянное хранилище профилей (SQLite по умолчанию, Turso/libSQL опционально).
 
-Хранит для каждого пользователя Telegram:
-- базовые данные и результат психотеста (психотип + баллы по жанрам);
-- оценки фильмов (❤️ нравится / 👎 не нравится) — это и есть «память вкуса»
-  и понимание, что человек уже видел/оценивал.
+Бэкенд выбирается по переменным окружения:
+- если задан TURSO_DATABASE_URL (+ TURSO_AUTH_TOKEN) — используется Turso (libSQL),
+  что нужно для serverless (Vercel) и единой базы сайта и бота;
+- иначе — локальный файл SQLite (CINEMA_DB или bot/userdata.db).
 
-SQLite встроен в Python — внешних зависимостей не требуется.
-Файл базы: bot/userdata.db (в .gitignore, в репозиторий не попадает).
+SQL-диалект одинаков (libSQL = SQLite), поэтому запросы не меняются.
+Профиль хранит: данные пользователя, результат психотеста, любимые жанры,
+веса модели вкуса и оценки фильмов (❤️/👎).
 """
 from __future__ import annotations
 
@@ -18,8 +19,11 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, Set
 
 _DB_PATH = os.getenv("CINEMA_DB") or os.path.join(os.path.dirname(__file__), "userdata.db")
+_TURSO_URL = os.getenv("TURSO_DATABASE_URL")
+_TURSO_TOKEN = os.getenv("TURSO_AUTH_TOKEN")
+
 _lock = threading.Lock()
-_conn: Optional[sqlite3.Connection] = None
+_conn = None
 
 LIKE = 1
 DISLIKE = -1
@@ -29,18 +33,33 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def _connect() -> sqlite3.Connection:
+def _connect():
     global _conn
     if _conn is None:
-        _conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
-        _conn.row_factory = sqlite3.Row
+        if _TURSO_URL:
+            import libsql_experimental as libsql  # ленивый импорт: нужен только для Turso
+
+            _conn = libsql.connect(database=_TURSO_URL, auth_token=_TURSO_TOKEN)
+        else:
+            _conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
     return _conn
+
+
+def _rows(cur) -> List[dict]:
+    """Универсально превращает курсор в список словарей (работает и для sqlite, и для libsql)."""
+    cols = [d[0] for d in cur.description] if cur.description else []
+    return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+
+def _one(cur) -> Optional[dict]:
+    rows = _rows(cur)
+    return rows[0] if rows else None
 
 
 def init_db() -> None:
     with _lock:
         conn = _connect()
-        conn.executescript(
+        conn.execute(
             """
             CREATE TABLE IF NOT EXISTS users (
                 user_id          INTEGER PRIMARY KEY,
@@ -52,7 +71,11 @@ def init_db() -> None:
                 taste_weights    TEXT,
                 created_at       TEXT,
                 updated_at       TEXT
-            );
+            )
+            """
+        )
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS ratings (
                 user_id    INTEGER,
                 movie_key  TEXT,
@@ -65,11 +88,11 @@ def init_db() -> None:
                 value      INTEGER,
                 created_at TEXT,
                 PRIMARY KEY (user_id, movie_key)
-            );
+            )
             """
         )
-        # Миграция для старых баз: добавить столбец, если его ещё нет
-        cols = [r["name"] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+        # Миграция старых баз
+        cols = [r["name"] for r in _rows(conn.execute("PRAGMA table_info(users)"))]
         if "preferred_genres" not in cols:
             conn.execute("ALTER TABLE users ADD COLUMN preferred_genres TEXT")
         if "taste_weights" not in cols:
@@ -77,47 +100,7 @@ def init_db() -> None:
         conn.commit()
 
 
-def set_taste(user_id: int, weights: Dict[str, float]) -> None:
-    with _lock:
-        conn = _connect()
-        conn.execute(
-            "UPDATE users SET taste_weights=?, updated_at=? WHERE user_id=?",
-            (json.dumps(weights), _now(), user_id),
-        )
-        conn.commit()
-
-
-def get_taste(user_id: int) -> Dict[str, float]:
-    with _lock:
-        conn = _connect()
-        row = conn.execute(
-            "SELECT taste_weights FROM users WHERE user_id=?", (user_id,)
-        ).fetchone()
-    if row and row["taste_weights"]:
-        return json.loads(row["taste_weights"])
-    return {}
-
-
 # --------------------------------------------------------------- users
-def set_preferred_genres(user_id: int, keys: List[str]) -> None:
-    with _lock:
-        conn = _connect()
-        conn.execute(
-            "UPDATE users SET preferred_genres=?, updated_at=? WHERE user_id=?",
-            (json.dumps(keys), _now(), user_id),
-        )
-        conn.commit()
-
-
-def get_preferred_genres(user_id: int) -> List[str]:
-    with _lock:
-        conn = _connect()
-        row = conn.execute(
-            "SELECT preferred_genres FROM users WHERE user_id=?", (user_id,)
-        ).fetchone()
-    if row and row["preferred_genres"]:
-        return json.loads(row["preferred_genres"])
-    return []
 def upsert_user(user_id: int, first_name: str = "", username: str = "") -> None:
     with _lock:
         conn = _connect()
@@ -145,19 +128,56 @@ def set_quiz_result(user_id: int, archetype_key: str, quiz_scores: Dict[int, int
         conn.commit()
 
 
+def set_preferred_genres(user_id: int, keys: List[str]) -> None:
+    with _lock:
+        conn = _connect()
+        conn.execute(
+            "UPDATE users SET preferred_genres=?, updated_at=? WHERE user_id=?",
+            (json.dumps(keys), _now(), user_id),
+        )
+        conn.commit()
+
+
+def get_preferred_genres(user_id: int) -> List[str]:
+    with _lock:
+        conn = _connect()
+        row = _one(conn.execute("SELECT preferred_genres FROM users WHERE user_id=?", (user_id,)))
+    if row and row["preferred_genres"]:
+        return json.loads(row["preferred_genres"])
+    return []
+
+
+def set_taste(user_id: int, weights: Dict[str, float]) -> None:
+    with _lock:
+        conn = _connect()
+        conn.execute(
+            "UPDATE users SET taste_weights=?, updated_at=? WHERE user_id=?",
+            (json.dumps(weights), _now(), user_id),
+        )
+        conn.commit()
+
+
+def get_taste(user_id: int) -> Dict[str, float]:
+    with _lock:
+        conn = _connect()
+        row = _one(conn.execute("SELECT taste_weights FROM users WHERE user_id=?", (user_id,)))
+    if row and row["taste_weights"]:
+        return json.loads(row["taste_weights"])
+    return {}
+
+
 def get_user(user_id: int) -> Optional[dict]:
     with _lock:
         conn = _connect()
-        row = conn.execute("SELECT * FROM users WHERE user_id=?", (user_id,)).fetchone()
+        row = _one(conn.execute("SELECT * FROM users WHERE user_id=?", (user_id,)))
     if not row:
         return None
-    data = dict(row)
-    data["quiz_scores"] = (
-        {int(k): v for k, v in json.loads(data["quiz_scores"]).items()}
-        if data.get("quiz_scores")
+    row["quiz_scores"] = (
+        {int(k): v for k, v in json.loads(row["quiz_scores"]).items()}
+        if row.get("quiz_scores")
         else {}
     )
-    return data
+    return row
 
 
 # --------------------------------------------------------------- ratings
@@ -170,7 +190,6 @@ def _csv_to_genres(csv: str) -> List[int]:
 
 
 def add_rating(user_id: int, movie: dict, value: int) -> None:
-    """value: storage.LIKE (1) или storage.DISLIKE (-1)."""
     with _lock:
         conn = _connect()
         conn.execute(
@@ -200,9 +219,7 @@ def add_rating(user_id: int, movie: dict, value: int) -> None:
 def get_rated_keys(user_id: int) -> Set[str]:
     with _lock:
         conn = _connect()
-        rows = conn.execute(
-            "SELECT movie_key FROM ratings WHERE user_id=?", (user_id,)
-        ).fetchall()
+        rows = _rows(conn.execute("SELECT movie_key FROM ratings WHERE user_id=?", (user_id,)))
     return {r["movie_key"] for r in rows}
 
 
@@ -227,35 +244,29 @@ def _rows_to_movies(rows) -> List[dict]:
 def get_liked(user_id: int) -> List[dict]:
     with _lock:
         conn = _connect()
-        rows = conn.execute(
-            "SELECT * FROM ratings WHERE user_id=? AND value>0 ORDER BY created_at DESC",
-            (user_id,),
-        ).fetchall()
+        rows = _rows(conn.execute(
+            "SELECT * FROM ratings WHERE user_id=? AND value>0 ORDER BY created_at DESC", (user_id,)
+        ))
     return _rows_to_movies(rows)
 
 
 def get_disliked(user_id: int) -> List[dict]:
     with _lock:
         conn = _connect()
-        rows = conn.execute(
-            "SELECT * FROM ratings WHERE user_id=? AND value<0 ORDER BY created_at DESC",
-            (user_id,),
-        ).fetchall()
+        rows = _rows(conn.execute(
+            "SELECT * FROM ratings WHERE user_id=? AND value<0 ORDER BY created_at DESC", (user_id,)
+        ))
     return _rows_to_movies(rows)
 
 
 def get_ratings_map(user_id: int) -> Dict[str, int]:
-    """{movie_key: value} — для синхронизации с сайтом."""
     with _lock:
         conn = _connect()
-        rows = conn.execute(
-            "SELECT movie_key, value FROM ratings WHERE user_id=?", (user_id,)
-        ).fetchall()
+        rows = _rows(conn.execute("SELECT movie_key, value FROM ratings WHERE user_id=?", (user_id,)))
     return {r["movie_key"]: r["value"] for r in rows}
 
 
 def get_profile(user_id: int) -> dict:
-    """Полный профиль пользователя (для веб-API)."""
     return {
         "ratings": get_ratings_map(user_id),
         "taste_weights": get_taste(user_id),
@@ -265,13 +276,10 @@ def get_profile(user_id: int) -> dict:
 
 
 def get_genre_affinity(user_id: int) -> Dict[int, int]:
-    """Симпатия к жанрам по оценкам: +2 за лайк, -1 за дизлайк (на каждый жанр)."""
     affinity: Dict[int, int] = {}
     with _lock:
         conn = _connect()
-        rows = conn.execute(
-            "SELECT genres, value FROM ratings WHERE user_id=?", (user_id,)
-        ).fetchall()
+        rows = _rows(conn.execute("SELECT genres, value FROM ratings WHERE user_id=?", (user_id,)))
     for r in rows:
         weight = 2 if r["value"] > 0 else -1
         for g in _csv_to_genres(r["genres"]):
@@ -282,17 +290,10 @@ def get_genre_affinity(user_id: int) -> Dict[int, int]:
 def get_stats(user_id: int) -> Dict[str, int]:
     with _lock:
         conn = _connect()
-        row = conn.execute(
-            """
-            SELECT
-                COALESCE(SUM(value>0), 0) AS liked,
-                COALESCE(SUM(value<0), 0) AS disliked,
-                COUNT(*) AS total
-            FROM ratings WHERE user_id=?
-            """,
-            (user_id,),
-        ).fetchone()
-    return {"liked": row["liked"], "disliked": row["disliked"], "total": row["total"]}
+        rows = _rows(conn.execute("SELECT value FROM ratings WHERE user_id=?", (user_id,)))
+    liked = sum(1 for r in rows if r["value"] > 0)
+    disliked = sum(1 for r in rows if r["value"] < 0)
+    return {"liked": liked, "disliked": disliked, "total": len(rows)}
 
 
 def reset_user(user_id: int) -> None:
@@ -300,7 +301,8 @@ def reset_user(user_id: int) -> None:
         conn = _connect()
         conn.execute("DELETE FROM ratings WHERE user_id=?", (user_id,))
         conn.execute(
-            "UPDATE users SET archetype=NULL, quiz_scores=NULL, updated_at=? WHERE user_id=?",
+            "UPDATE users SET archetype=NULL, quiz_scores=NULL, taste_weights=NULL,"
+            " preferred_genres=NULL, updated_at=? WHERE user_id=?",
             (_now(), user_id),
         )
         conn.commit()

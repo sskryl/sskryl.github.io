@@ -92,27 +92,38 @@ python bot.py
 Форматы данных специально совместимы: ключи фильмов (`tmdb:603`, локальные id)
 и признаки модели (`g:27`, `era:1990s`, `recent`) одинаковы в боте и на сайте.
 
-### Развернуть API + бота (один хост с публичным адресом)
+### Вариант A — Vercel + Turso (serverless, рекомендуется)
+
+API развёрнут как serverless-функция (`api/index.py` → Flask `bot/web_api.py`),
+а общая база — **Turso** (libSQL, SQLite-совместимая).
+
+1. **База Turso.** На [turso.tech](https://turso.tech): создайте БД, получите
+   `TURSO_DATABASE_URL` (`libsql://…`) и `TURSO_AUTH_TOKEN`.
+2. **Деплой API на Vercel.** Импортируйте репозиторий на [vercel.com](https://vercel.com)
+   (Framework = Other). В **Settings → Environment Variables** задайте:
+   `TELEGRAM_BOT_TOKEN`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`,
+   `CORS_ORIGIN=https://<username>.github.io`. Деплой → получите URL вида
+   `https://kinovolt.vercel.app` (проверка: `GET /` вернёт `{"ok": true}`).
+3. **Бот с той же базой.** Запустите бота (локально/где угодно), задав те же
+   `TURSO_DATABASE_URL` и `TURSO_AUTH_TOKEN` — тогда бот и сайт делят один профиль.
+   *(libSQL ставится отдельно: `pip install libsql-experimental`.)*
+4. **@BotFather → `/setdomain`** → `https://<username>.github.io` (без этого виджет входа не появится).
+5. В `assets/js/config.js`: `apiBaseUrl` = адрес Vercel, `telegramBotName` = имя бота без `@`. Закоммитьте.
+
+`vercel.json` маршрутизирует все запросы на функцию; `requirements.txt` в корне —
+зависимости функции (без тяжёлого PTB).
+
+### Вариант B — Docker (свой сервер/VPS, без serverless)
 
 ```bash
-# на сервере/хостинге с Docker:
 cp bot/.env.example bot/.env     # TELEGRAM_BOT_TOKEN, CORS_ORIGIN=https://<username>.github.io
-docker compose up --build -d     # поднимет bot + api (порт 8080), общая база
+docker compose up --build -d     # bot + api (порт 8080), общий том — единая база
 ```
 
-`docker-compose.yml` запускает два сервиса (`bot` и `api`) с общим томом — профили едины.
+Затем в `config.js` укажите `apiBaseUrl` на адрес вашего сервера.
 
-### Включить на сайте
-
-1. В **@BotFather** → `/setdomain` → укажите домен сайта (`https://<username>.github.io`)
-   — без этого виджет входа не появится.
-2. В `assets/js/config.js`:
-   - `apiBaseUrl` — публичный адрес API (например `https://kinovolt-api.up.railway.app`);
-   - `telegramBotName` — имя бота без `@`.
-3. Закоммитьте — на сайте появится кнопка **«Войти через Telegram»**.
-
-Пока `apiBaseUrl` пуст, вход выключен, а сайт работает на локальном профиле
-(localStorage) — как и раньше.
+> Пока `apiBaseUrl` пуст, вход выключен, а сайт работает на локальном профиле
+> (localStorage) — как и раньше.
 
 ### Эндпоинты API
 - `POST /api/auth/telegram` — проверка подписи Telegram, выдача сессии (HMAC).
