@@ -241,6 +241,7 @@
             <div class="detail__rate">
               <button class="detail__rbtn detail__rbtn--yes ${st === 1 ? "is-on" : ""}" data-card-rate="like" data-rid="${esc(movie.id)}">❤️ Нравится</button>
               <button class="detail__rbtn detail__rbtn--no ${st === -1 ? "is-on" : ""}" data-card-rate="dislike" data-rid="${esc(movie.id)}">👎 Не нравится</button>
+              <button class="detail__rbtn" data-share="${esc(movie.title)}">🔗 Поделиться</button>
             </div>
             <p class="detail__overview">${esc(movie.overview || "Описание недоступно.")}</p>
             <ul class="detail__facts">${facts.join("")}</ul>
@@ -248,6 +249,7 @@
         </div>
       </div>
       ${castRow(movie.cast)}
+      ${window.Ads ? `<div class="detail">${Ads.slot("detail")}</div>` : ""}
       ${similarBlock}`;
   }
 

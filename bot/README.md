@@ -1,4 +1,4 @@
-# 🤖 КиноВольт — Telegram-бот с психотестом
+# 🤖 Kinoflex — Telegram-бот с психотестом
 
 Бот задаёт пользователю серию вопросов о настроении и характере, определяет его
 «киногенный» психотип и подбирает фильмы под него.
@@ -84,8 +84,8 @@ python bot.py
 
 ```bash
 # из корня репозитория
-docker build -t kinovolt-bot .
-docker run -e TELEGRAM_BOT_TOKEN=xxxxx -e TMDB_API_KEY=yyyyy kinovolt-bot
+docker build -t kinoflex-bot .
+docker run -e TELEGRAM_BOT_TOKEN=xxxxx -e TMDB_API_KEY=yyyyy kinoflex-bot
 ```
 
 ### Вариант 2. docker compose (одна команда)

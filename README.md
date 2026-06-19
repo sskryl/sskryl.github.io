@@ -1,4 +1,4 @@
-# 🎬 КиноВольт — бесплатный онлайн кинотеатр + Telegram-бот с психотестом
+# 🎬 Kinoflex — бесплатный онлайн кинотеатр + Telegram-бот с психотестом
 
 Проект из двух частей:
 
@@ -103,7 +103,7 @@ API развёрнут как serverless-функция (`api/index.py` → Flas
    (Framework = Other). В **Settings → Environment Variables** задайте:
    `TELEGRAM_BOT_TOKEN`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`,
    `CORS_ORIGIN=https://<username>.github.io`. Деплой → получите URL вида
-   `https://kinovolt.vercel.app` (проверка: `GET /` вернёт `{"ok": true}`).
+   `https://kinoflex.vercel.app` (проверка: `GET /` вернёт `{"ok": true}`).
 3. **Бот с той же базой.** Запустите бота (локально/где угодно), задав те же
    `TURSO_DATABASE_URL` и `TURSO_AUTH_TOKEN` — тогда бот и сайт делят один профиль.
    *(libSQL ставится отдельно: `pip install libsql-experimental`.)*

@@ -4,7 +4,7 @@
 # Бот работает по long-polling, поэтому это фоновый worker (тариф starter).
 services:
   - type: worker
-    name: kinovolt-bot
+    name: kinoflex-bot
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: starter

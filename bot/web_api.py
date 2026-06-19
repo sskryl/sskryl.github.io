@@ -134,7 +134,7 @@ def _apply_rating(uid: int, movie: dict, value: int, known: set) -> None:
 # --------------------------------------------------------------- routes
 @app.get("/")
 def health():
-    return jsonify({"ok": True, "service": "kinovolt-api"})
+    return jsonify({"ok": True, "service": "kinoflex-api"})
 
 
 @app.post("/api/auth/telegram")

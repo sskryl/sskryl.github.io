@@ -15,7 +15,7 @@
 
 window.CINEMA_CONFIG = {
   // Название кинотеатра (выводится в шапке и заголовке вкладки)
-  siteName: "КиноВольт",
+  siteName: "Kinoflex",
 
   // Ключ TMDB API (v3). Оставьте пустым, чтобы работать только на локальном
   // каталоге public-domain фильмов.
@@ -33,6 +33,27 @@ window.CINEMA_CONFIG = {
 
   // Адрес развёрнутого веб-API (bot/web_api.py). Пусто = вход выключен,
   // сайт работает только на локальном профиле (localStorage).
-  // Пример: "https://kinovolt-api.up.railway.app"
+  // Пример: "https://kinoflex-api.vercel.app"
   apiBaseUrl: "",
+
+  // --- Реклама и баннеры ---
+  // Сайт готов к монетизации. Включите ads.enabled и задайте либо AdSense,
+  // либо свои баннеры. Слоты помечаются «Реклама» и стоят ненавязчиво
+  // (между рядами, над каталогом, в карточке фильма).
+  ads: {
+    enabled: true,             // главный выключатель рекламы
+    label: "Реклама",          // подпись над блоком
+    adsenseClient: "",         // Google AdSense, напр. "ca-pub-1234567890123456"
+    adsenseSlots: {            // id рекламных блоков AdSense по местам
+      home: "",
+      catalog: "",
+      detail: "",
+    },
+    // Свои баннеры (показываются, если AdSense не задан). Можно несколько —
+    // выбирается случайный. { image, link, alt }
+    banners: [
+      // { image: "https://.../banner.jpg", link: "https://partner.example", alt: "Промо" }
+    ],
+    showPlaceholder: true,     // показывать заглушку, если ничего не настроено
+  },
 };

@@ -1,10 +1,10 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title KinoVolt Telegram bot
+title Kinoflex Telegram bot
 
 echo ====================================================
-echo            KINOVOLT - Telegram bot launcher
+echo            KINOFLEX - Telegram bot launcher
 echo ====================================================
 echo.
 

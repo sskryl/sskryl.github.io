@@ -96,10 +96,12 @@
     html += UI.row("В тренде на этой неделе", trend.slice(0, 18), "#/catalog", "🔥");
     html += UI.row("Новинки", val(fresh).slice(0, 18), "#/catalog?sort=release_date.desc", "🆕");
     html += UI.row("Смотреть бесплатно", free.slice(0, 18), "#/free", "🆓");
+    if (window.Ads) html += Ads.slot("home");
     html += UI.row("Топ рейтинга", val(top).slice(0, 18), "#/catalog?sort=vote_average.desc", "⭐");
     html += "</div>";
 
     appEl.innerHTML = html;
+    if (window.Ads) Ads.activate();
 
     // Жанровые ряды догружаем после основной отрисовки
     const container = appEl.querySelector(".container");
@@ -194,6 +196,7 @@
     return `<div class="container">
       <div class="page-head"><h1>${UI.esc(title)}</h1>${subtitle ? `<p>${UI.esc(subtitle)}</p>` : ""}</div>
       ${filtersHtml || ""}${controlsHtml || ""}
+      ${window.Ads ? Ads.slot("catalog") : ""}
       <div id="list-grid">${UI.skeletonGrid()}</div>
       <div class="load-more" id="load-more-wrap"></div></div>`;
   }
@@ -250,6 +253,7 @@
       ? "Тысячи фильмов из TMDB. Фильтруйте по жанру, году и рейтингу."
       : "Каталог public-domain фильмов. Подключите TMDB-ключ для большой базы.";
     appEl.innerHTML = listShell(title, subtitle, genreChips(genre), filterControls());
+    if (window.Ads) Ads.activate();
     bindFilterControls();
     list = { fetch: (p) => Api.discover({ ...filters, page: p }), page: 1, totalPages: 1, items: [] };
     loadListPage();
@@ -563,6 +567,7 @@
       }
       const similar = await Api.getSimilar(movie);
       modalContentEl.innerHTML = UI.detail(movie, similar);
+      if (window.Ads) Ads.activate();
       UI.addToHistory(movie);
     } catch (e) {
       console.error(e);
@@ -635,6 +640,7 @@
   };
 
   function initChrome() {
+    if (window.Ads) Ads.init();
     if (CFG.siteName) {
       document.title = CFG.siteName + " — бесплатный онлайн кинотеатр";
       document.querySelectorAll("[data-site-name]").forEach((el) => (el.textContent = CFG.siteName));
@@ -694,6 +700,19 @@
         Sync.logout();
         renderAuth();
         router();
+        return;
+      }
+      const sh = e.target.closest("[data-share]");
+      if (sh) {
+        const title = sh.getAttribute("data-share");
+        const url = location.href.split("#")[0];
+        const name = CFG.siteName || "Kinoflex";
+        const text = `Смотри «${title}» на ${name}`;
+        if (navigator.share) {
+          navigator.share({ title: name, text: text, url: url }).catch(() => {});
+        } else if (navigator.clipboard) {
+          navigator.clipboard.writeText(text + " " + url).then(() => { sh.textContent = "✓ Скопировано"; }).catch(() => {});
+        }
         return;
       }
       const cardRate = e.target.closest("[data-card-rate]");
