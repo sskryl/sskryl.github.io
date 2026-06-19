@@ -1,5 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
 <head>
-    <footer>
-        <h1>Hello World!</h1>
-    </footer>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>КиноВольт — бесплатный онлайн кинотеатр</title>
+  <meta name="description" content="Бесплатный онлайн кинотеатр: классика мирового кино в общественном достоянии, удобный каталог с фильтрами, поиск и подбор фильмов по психотесту в Telegram." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>" />
+  <link rel="preconnect" href="https://archive.org" />
+  <link rel="preconnect" href="https://image.tmdb.org" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
 </head>
+<body>
+  <!-- ===================== ШАПКА ===================== -->
+  <header class="header" id="header">
+    <div class="container header__inner">
+      <a href="#/" class="logo" aria-label="На главную">
+        <span class="logo__mark">🎬</span>
+        <span class="logo__text" data-site-name>КиноВольт</span>
+      </a>
+
+      <nav class="nav" id="nav">
+        <a href="#/" class="nav__link" data-route="home">Главная</a>
+        <a href="#/catalog" class="nav__link" data-route="catalog">Каталог</a>
+        <a href="#/catalog/genre/27" class="nav__link">Ужасы</a>
+        <a href="#/catalog/genre/35" class="nav__link">Комедии</a>
+        <a href="#/catalog/genre/878" class="nav__link">Фантастика</a>
+        <a href="#/free" class="nav__link nav__link--accent">Смотреть бесплатно</a>
+      </nav>
+
+      <form class="search" id="search" role="search">
+        <input type="search" class="search__input" id="search-input"
+               placeholder="Поиск фильма…" autocomplete="off" aria-label="Поиск фильма" />
+        <button type="submit" class="search__btn" aria-label="Найти">🔍</button>
+      </form>
+
+      <button class="burger" id="burger" aria-label="Меню" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===================== ОСНОВНОЙ КОНТЕНТ ===================== -->
+  <main class="container" id="app">
+    <div class="loader" id="loader"><div class="spinner"></div></div>
+  </main>
+
+  <!-- ===================== ПОДВАЛ ===================== -->
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div class="footer__col">
+        <div class="logo logo--footer">
+          <span class="logo__mark">🎬</span>
+          <span class="logo__text" data-site-name>КиноВольт</span>
+        </div>
+        <p class="footer__about">
+          Бесплатный онлайн кинотеатр. В каталоге — фильмы, перешедшие
+          в общественное достояние (public domain): их можно смотреть
+          и распространять легально. Метаданные предоставлены TMDB.
+        </p>
+      </div>
+      <div class="footer__col">
+        <h4>Разделы</h4>
+        <a href="#/">Главная</a>
+        <a href="#/catalog">Каталог</a>
+        <a href="#/free">Смотреть бесплатно</a>
+      </div>
+      <div class="footer__col">
+        <h4>Подбор по психотесту</h4>
+        <p class="footer__about">Не знаете, что посмотреть? Пройдите психологический тест в нашем Telegram-боте — он подберёт фильмы под ваше настроение.</p>
+        <a class="btn btn--tg" id="footer-tg" href="#" target="_blank" rel="noopener">🤖 Открыть бота</a>
+      </div>
+    </div>
+    <div class="footer__bottom container">
+      <span>© <span id="year"></span> <span data-site-name>КиноВольт</span>. Контент в общественном достоянии.</span>
+      <span class="footer__disclaimer">Сайт не размещает материалы, защищённые авторским правом.</span>
+    </div>
+  </footer>
+
+  <!-- ===================== МОДАЛЬНОЕ ОКНО ФИЛЬМА ===================== -->
+  <div class="modal" id="modal" aria-hidden="true">
+    <div class="modal__backdrop" data-close-modal></div>
+    <div class="modal__dialog" role="dialog" aria-modal="true" aria-label="Карточка фильма">
+      <button class="modal__close" data-close-modal aria-label="Закрыть">✕</button>
+      <div class="modal__content" id="modal-content"></div>
+    </div>
+  </div>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
