@@ -186,6 +186,23 @@
       return this.discover({ genre: genreId, page });
     },
 
+    // Подбор по нескольким жанрам (OR) + диапазон годов — для «Слайдеров вкуса»
+    async discoverMulti({ genreIds, sort, releaseGte, releaseLte, page = 1 } = {}) {
+      if (this.hasTmdb()) {
+        const params = { sort_by: sort || "popularity.desc", "vote_count.gte": 40, page };
+        if (genreIds && genreIds.length) params.with_genres = genreIds.join("|");
+        if (releaseGte) params["primary_release_date.gte"] = releaseGte;
+        if (releaseLte) params["primary_release_date.lte"] = releaseLte;
+        const d = await tmdbFetch("/discover/movie", params);
+        return { results: d.results.map(normTmdb), totalPages: d.total_pages };
+      }
+      let listm = catalog.movies.map(normLocal);
+      if (genreIds && genreIds.length) listm = listm.filter((m) => m.genres.some((g) => genreIds.includes(g)));
+      if (releaseGte) listm = listm.filter((m) => (m.year || 0) >= +releaseGte.slice(0, 4));
+      if (releaseLte) listm = listm.filter((m) => (m.year || 0) <= +releaseLte.slice(0, 4));
+      return { results: listm, totalPages: 1 };
+    },
+
     async search(query, page = 1) {
       const q = (query || "").trim();
       if (!q) return localPage([]);

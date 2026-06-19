@@ -9,6 +9,7 @@
   const TKEY = "cinema:taste";   // веса { feature: w }
   const MKEY = "cinema:movies";  // кэш метаданных { id: {...} }
   const QKEY = "cinema:quiz";    // { archetype, scores }
+  const SKEY = "cinema:sliders"; // позиции слайдеров вкуса
   const LR = 0.35, L2 = 0.002;
   const NOW = new Date().getFullYear();
 
@@ -95,8 +96,19 @@
         .slice(0, n);
     },
 
-    hasProfile() { return Object.keys(this.getRatings()).length > 0 || !!this.getQuiz(); },
-    reset() { [RKEY, TKEY, MKEY, QKEY].forEach((k) => localStorage.removeItem(k)); },
+    getSliders() { return load(SKEY, null); },
+    // Сохраняет позиции слайдеров и применяет дельту к весам модели.
+    setSliders(values, delta) {
+      save(SKEY, values);
+      const w = this.getWeights();
+      for (const k in (delta || {})) w[k] = (w[k] || 0) + delta[k];
+      save(TKEY, w);
+    },
+
+    hasProfile() {
+      return Object.keys(this.getRatings()).length > 0 || !!this.getQuiz() || !!this.getSliders();
+    },
+    reset() { [RKEY, TKEY, MKEY, QKEY, SKEY].forEach((k) => localStorage.removeItem(k)); },
   };
 
   window.Taste = Taste;

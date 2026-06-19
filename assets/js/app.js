@@ -14,6 +14,14 @@
   let heroTimer = null;
   let swipeState = { pool: [], loading: false };
   let quizState = { answers: [], q: 0 };
+  let tasteVals = null;
+  let tasteTimer = null;
+  const TASTE_SLIDERS = [
+    { key: "s1", left: "🎈 Лёгкое", right: "Серьёзное 🎭" },
+    { key: "s2", left: "🕰 Классика", right: "Новинки 🚀" },
+    { key: "s3", left: "🌍 Реализм", right: "Фантазия 🐉" },
+    { key: "s4", left: "🧘 Спокойное", right: "Динамичное ⚡" },
+  ];
 
   function scrollTop() {
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -436,6 +444,99 @@
     scrollTop();
   }
 
+  // ------------------------------------------------------------- СЛАЙДЕРЫ ВКУСА
+  // Полюса каждого слайдера: какие жанры усиливает левый/правый край.
+  const SLIDER_POLES = {
+    s1: { low: { 35: 1, 10751: 0.8, 16: 0.6, 10749: 0.4 }, high: { 18: 1, 36: 0.7, 10752: 0.6, 80: 0.5 } },
+    s3: { low: { 18: 0.8, 80: 0.8, 36: 0.6, 99: 0.6, 53: 0.5 }, high: { 14: 1, 878: 1, 12: 0.6, 16: 0.4 } },
+    s4: { low: { 18: 0.7, 10749: 0.8, 99: 0.5, 10751: 0.4 }, high: { 28: 1, 53: 0.8, 12: 0.7, 27: 0.6 } },
+  };
+
+  function sliderGenreScores(v) {
+    const t = (x) => (x / 100 - 0.5) * 2; // [-1..1]
+    const score = {};
+    ["s1", "s3", "s4"].forEach((k) => {
+      const tv = t(v[k]);
+      if (Math.abs(tv) < 0.05) return;
+      const set = tv > 0 ? SLIDER_POLES[k].high : SLIDER_POLES[k].low;
+      for (const g in set) score[g] = (score[g] || 0) + Math.abs(tv) * set[g];
+    });
+    return score;
+  }
+  function tasteEra(v) { return (v.s2 / 100 - 0.5) * 2; } // минус — классика, плюс — новинки
+
+  async function tasteLivePool(v) {
+    const gs = sliderGenreScores(v);
+    const top = Object.keys(gs).map(Number).sort((a, b) => gs[b] - gs[a]).slice(0, 4);
+    const t2 = tasteEra(v);
+    const yr = new Date().getFullYear();
+    const opts = { genreIds: top, page: 1, sort: "popularity.desc" };
+    if (t2 > 0.25) opts.releaseGte = yr - 4 + "-01-01";
+    else if (t2 < -0.25) { opts.releaseLte = "1995-12-31"; opts.sort = "vote_average.desc"; }
+    let res = [];
+    try { res = (await Api.discoverMulti(opts)).results; } catch (e) {}
+    const scoreMovie = (m) => {
+      let s = (m.genres || []).reduce((a, g) => a + (gs[g] || 0), 0);
+      if (t2 > 0 && +m.year >= yr - 5) s += t2 * 0.8;
+      if (t2 < 0 && +m.year && +m.year < 1995) s += -t2 * 0.8;
+      return s + (m.rating || 0) / 20;
+    };
+    res.sort((a, b) => scoreMovie(b) - scoreMovie(a));
+    return res.slice(0, 12);
+  }
+
+  async function updateTasteResults() {
+    const box = document.getElementById("taste-results");
+    if (!box) return;
+    const pool = await tasteLivePool(tasteVals);
+    box.innerHTML = pool.length ? UI.grid(pool) : UI.empty("Подвигай ползунки, чтобы увидеть фильмы", "🎛");
+  }
+
+  function saveTaste() {
+    const gs = sliderGenreScores(tasteVals);
+    const vals = Object.values(gs);
+    const mx = vals.length ? Math.max.apply(null, vals) : 1;
+    const delta = {};
+    for (const g in gs) delta["g:" + g] = gs[g] / mx;
+    const t2 = tasteEra(tasteVals);
+    if (t2 > 0.15) delta["recent"] = t2;
+    if (t2 < -0.15) delta["era:classic"] = -t2;
+    Taste.setSliders(tasteVals, delta);
+    location.hash = "#/foryou";
+  }
+
+  function renderTaste() {
+    stopHero();
+    tasteVals = Taste.getSliders() || { s1: 50, s2: 50, s3: 50, s4: 50 };
+    const sliders = TASTE_SLIDERS.map((s) => `
+      <div class="tslider">
+        <div class="tslider__labels"><span>${UI.esc(s.left)}</span><span>${UI.esc(s.right)}</span></div>
+        <input type="range" min="0" max="100" value="${tasteVals[s.key]}" class="tslider__input" data-slider="${s.key}" aria-label="${UI.esc(s.left)} — ${UI.esc(s.right)}">
+      </div>`).join("");
+    appEl.innerHTML = `<div class="container taste">
+      <div class="page-head"><h1>🎛 Слайдеры вкуса</h1><p>Двигай ползунки — подборка под тобой меняется вживую. Никаких вопросов.</p></div>
+      <div class="taste__sliders">${sliders}</div>
+      <div class="taste__live">
+        <div class="rowsec__head"><h2 class="rowsec__title">🎬 Под твоё настроение</h2></div>
+        <div id="taste-results">${UI.skeletonGrid()}</div>
+      </div>
+      <div class="taste__save">
+        <button class="btn btn--lg" id="taste-save">💾 Сохранить вкус</button>
+        <a class="nav__link taste__alt" href="#/quiz">или классический тест →</a>
+      </div></div>`;
+    appEl.querySelectorAll(".tslider__input").forEach((inp) => {
+      inp.addEventListener("input", () => {
+        tasteVals[inp.getAttribute("data-slider")] = +inp.value;
+        clearTimeout(tasteTimer);
+        tasteTimer = setTimeout(updateTasteResults, 280);
+      });
+    });
+    const saveBtn = document.getElementById("taste-save");
+    if (saveBtn) saveBtn.addEventListener("click", saveTaste);
+    updateTasteResults();
+    scrollTop();
+  }
+
   // ------------------------------------------------------------- МОДАЛКА
   async function openMovie(id) {
     modalEl.classList.add("is-open");
@@ -477,6 +578,7 @@
     if (parts[0] === "swipe") return renderSwipe();
     if (parts[0] === "foryou") return renderForYou();
     if (parts[0] === "my") return renderMy();
+    if (parts[0] === "taste") return renderTaste();
     if (parts[0] === "quiz") return renderQuiz();
     if (parts[0] === "free") return renderFree();
     if (parts[0] === "search") return renderSearch(decodeURIComponent(parts.slice(1).join("/")));
