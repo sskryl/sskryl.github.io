@@ -25,5 +25,5 @@ window.CINEMA_CONFIG = {
   tmdbLanguage: "ru-RU",
 
   // Ссылка на Telegram-бота с психотестом (показывается баннером на сайте)
-  telegramBotUrl: "https://t.me/your_bot_username",
+  telegramBotUrl: "https://t.me/movie_o_bot",
 };
