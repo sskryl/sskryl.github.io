@@ -12,6 +12,8 @@
   let list = null;            // { fetch, page, totalPages, items }
   let filters = null;         // { genre, year, sort, minRating }
   let heroTimer = null;
+  let swipeState = { pool: [], loading: false };
+  let quizState = { answers: [], q: 0 };
 
   function scrollTop() {
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -95,6 +97,19 @@
             "beforeend",
             UI.row(Api.genreName(gid), g.results.slice(0, 18), "#/catalog/genre/" + gid)
           );
+        }
+      } catch (e) {}
+    }
+
+    // Персональный ряд «Для вас» (если есть профиль)
+    if (Taste.hasProfile()) {
+      try {
+        const pool = await buildSwipePool();
+        if (pool.length) {
+          const tg = container.querySelector(".tg-banner");
+          const rowHtml = UI.row("Для вас", pool.slice(0, 18), "#/foryou", "✨");
+          if (tg) tg.insertAdjacentHTML("afterend", rowHtml);
+          else container.insertAdjacentHTML("afterbegin", rowHtml);
         }
       } catch (e) {}
     }
@@ -247,6 +262,180 @@
     scrollTop();
   }
 
+  // ------------------------------------------------------------- ПЕРСОНАЛИЗАЦИЯ
+  async function buildSwipePool() {
+    const rated = Taste.ratedIds();
+    let pool = [];
+    const top = Taste.topGenres(3);
+    try {
+      const tr = await Api.getTrending(1);
+      pool = pool.concat(tr.results);
+      if (top.length) {
+        for (const g of top) {
+          const d = await Api.discover({ genre: g, page: 1 });
+          pool = pool.concat(d.results);
+        }
+      } else {
+        const nr = await Api.getNewReleases(1);
+        pool = pool.concat(nr.results);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    const seen = new Set();
+    const out = [];
+    for (const m of pool) {
+      if (!seen.has(m.id) && !rated.has(String(m.id))) {
+        seen.add(m.id);
+        out.push(m);
+      }
+    }
+    return Taste.rank(out);
+  }
+
+  function swipeCardHtml(m) {
+    const genres = Api.genreNames(m.genres, 3).join(" • ");
+    const s = Taste.stats();
+    const ov = (m.overview || "").slice(0, 240);
+    return `
+      <div class="swipe__counter">Оценено: ${s.total} &nbsp;❤️ ${s.liked} &nbsp;👎 ${s.disliked}</div>
+      <div class="swipe__card">
+        <div class="swipe__poster ${m.poster ? "" : "card__poster--empty"}" style="${m.poster ? `background-image:url('${UI.esc(m.poster)}')` : ""}">
+          ${m.poster ? "" : UI.esc(m.title)}
+          ${m.rating ? `<span class="card__rating">★ ${UI.esc(m.rating)}</span>` : ""}
+          ${m.free ? `<span class="card__free">free</span>` : ""}
+        </div>
+        <div class="swipe__info">
+          <h2 class="swipe__title">${UI.esc(m.title)} ${m.year ? `<span class="swipe__year">${UI.esc(m.year)}</span>` : ""}</h2>
+          <p class="swipe__genres">${UI.esc(genres)}</p>
+          <p class="swipe__overview">${UI.esc(ov)}${(m.overview || "").length > 240 ? "…" : ""}</p>
+          <button class="btn btn--ghost swipe__details" data-movie="${UI.esc(m.id)}">ℹ️ Подробнее / смотреть</button>
+        </div>
+      </div>
+      <div class="swipe__actions">
+        <button class="swipe__btn swipe__btn--no" data-rate="dislike" aria-label="Не нравится">👎</button>
+        <button class="swipe__btn swipe__btn--skip" data-skip aria-label="Пропустить">⏭</button>
+        <button class="swipe__btn swipe__btn--yes" data-rate="like" aria-label="Нравится">❤️</button>
+      </div>`;
+  }
+
+  function swipeFinishHtml() {
+    const s = Taste.stats();
+    return `<div class="empty"><div class="empty__emoji">🎉</div>
+      <p>Готово! Оценено фильмов: ${s.total} (❤️ ${s.liked} · 👎 ${s.disliked}).</p>
+      <div class="hero__actions" style="justify-content:center;margin-top:18px">
+        <a class="btn" href="#/foryou">✨ Смотреть «Для вас»</a>
+        <a class="btn btn--ghost" href="#/my">❤️ Моё</a>
+      </div></div>`;
+  }
+
+  function showSwipeCard() {
+    const area = document.getElementById("swipe-area");
+    if (!area) return;
+    area.innerHTML = swipeState.pool.length ? swipeCardHtml(swipeState.pool[0]) : swipeFinishHtml();
+  }
+
+  async function renderSwipe() {
+    stopHero();
+    appEl.innerHTML = `<div class="container"><div class="page-head"><h1>🎬 Подбор</h1><p>Оценивайте фильмы — модель учится на каждом ответе.</p></div><div class="swipe" id="swipe-area"><div class="loader"><div class="spinner"></div></div></div></div>`;
+    swipeState.pool = await buildSwipePool();
+    showSwipeCard();
+    scrollTop();
+  }
+
+  async function handleRate(action) {
+    const m = swipeState.pool.shift();
+    if (!m) return;
+    Taste.rate(m, action === "like");
+    swipeState.pool = Taste.rank(swipeState.pool);
+    showSwipeCard();
+    if (swipeState.pool.length < 3 && !swipeState.loading) {
+      swipeState.loading = true;
+      try {
+        const more = await buildSwipePool();
+        const have = new Set(swipeState.pool.map((x) => x.id));
+        more.forEach((x) => { if (!have.has(x.id)) swipeState.pool.push(x); });
+      } catch (e) {}
+      swipeState.loading = false;
+      if (!document.querySelector("#swipe-area .swipe__card")) showSwipeCard();
+    }
+  }
+
+  function handleSkip() {
+    swipeState.pool.shift();
+    showSwipeCard();
+  }
+
+  async function renderForYou() {
+    stopHero();
+    appEl.innerHTML = listShell("✨ Для вас", "Подобрано по вашим оценкам и психотипу", "", "");
+    const gridEl = document.getElementById("list-grid");
+    if (!Taste.hasProfile()) {
+      gridEl.innerHTML = UI.empty("Сначала оцените фильмы в разделе «🎬 Подбор» или пройдите «🧠 Тест».", "🧭");
+      document.getElementById("load-more-wrap").innerHTML = "";
+      return;
+    }
+    const pool = await buildSwipePool();
+    list = { fetch: null, page: 1, totalPages: 1, items: pool.slice(0, 30) };
+    renderListGrid();
+    scrollTop();
+  }
+
+  function renderMy() {
+    stopHero();
+    const liked = Taste.liked();
+    const s = Taste.stats();
+    let html = `<div class="container"><div class="page-head"><h1>❤️ Моё</h1><p>Оценено: ${s.total} (❤️ ${s.liked} · 👎 ${s.disliked})</p></div>`;
+    html += liked.length ? UI.grid(liked) : UI.empty("Пока пусто. Оцените фильмы в разделе «🎬 Подбор».");
+    html += `<div class="load-more"><button class="btn btn--ghost" data-reset>🗑 Сбросить мой профиль</button></div></div>`;
+    appEl.innerHTML = html;
+    scrollTop();
+  }
+
+  // ----- Психотест -----------------------------------------------------------
+  function showQuizQuestion() {
+    const i = quizState.q;
+    const q = Quiz.QUESTIONS[i];
+    const total = Quiz.QUESTIONS.length;
+    appEl.innerHTML = `<div class="container quiz">
+      <div class="quiz__bar"><span style="width:${(i / total) * 100}%"></span></div>
+      <div class="quiz__step">Вопрос ${i + 1} / ${total}</div>
+      <h1 class="quiz__q">${UI.esc(q.text)}</h1>
+      <div class="quiz__opts">${q.options.map((o, idx) => `<button class="quiz__opt" data-quiz-ans="${idx}">${UI.esc(o.label)}</button>`).join("")}</div>
+    </div>`;
+  }
+
+  function renderQuiz() {
+    stopHero();
+    quizState = { answers: [], q: 0 };
+    showQuizQuestion();
+    scrollTop();
+  }
+
+  function answerQuiz(optIdx) {
+    quizState.answers.push([quizState.q, optIdx]);
+    quizState.q += 1;
+    if (quizState.q < Quiz.QUESTIONS.length) showQuizQuestion();
+    else finishQuiz();
+  }
+
+  function finishQuiz() {
+    const scores = Quiz.score(quizState.answers);
+    const arch = Quiz.detect(scores);
+    Taste.setQuiz(arch.key, scores);
+    const titles = Quiz.topGenres(scores, 3).map((g) => Api.genreName(g)).filter(Boolean).join(", ");
+    appEl.innerHTML = `<div class="container quiz quiz--result">
+      <div class="quiz__result-emoji">✨</div>
+      <h1>${UI.esc(arch.title)}</h1>
+      <p class="quiz__desc">${UI.esc(arch.desc)}</p>
+      <p class="quiz__genres">🎯 Любимые жанры: <b>${UI.esc(titles)}</b></p>
+      <div class="hero__actions" style="justify-content:center;margin-top:8px">
+        <a class="btn btn--lg" href="#/swipe">🎬 Начать подбор</a>
+        <a class="btn btn--ghost" href="#/foryou">✨ Для вас</a>
+      </div></div>`;
+    scrollTop();
+  }
+
   // ------------------------------------------------------------- МОДАЛКА
   async function openMovie(id) {
     modalEl.classList.add("is-open");
@@ -285,6 +474,10 @@
     if (parts.length === 0) return renderHome();
     if (parts[0] === "catalog" && parts[1] === "genre") return renderCatalog(parts[2], query);
     if (parts[0] === "catalog") return renderCatalog(null, query);
+    if (parts[0] === "swipe") return renderSwipe();
+    if (parts[0] === "foryou") return renderForYou();
+    if (parts[0] === "my") return renderMy();
+    if (parts[0] === "quiz") return renderQuiz();
     if (parts[0] === "free") return renderFree();
     if (parts[0] === "search") return renderSearch(decodeURIComponent(parts.slice(1).join("/")));
     return renderHome();
@@ -326,6 +519,27 @@
     });
 
     document.body.addEventListener("click", (e) => {
+      const rateBtn = e.target.closest("[data-rate]");
+      if (rateBtn) {
+        handleRate(rateBtn.getAttribute("data-rate"));
+        return;
+      }
+      if (e.target.closest("[data-skip]")) {
+        handleSkip();
+        return;
+      }
+      const qa = e.target.closest("[data-quiz-ans]");
+      if (qa) {
+        answerQuiz(Number(qa.getAttribute("data-quiz-ans")));
+        return;
+      }
+      if (e.target.closest("[data-reset]")) {
+        if (window.confirm("Сбросить ваш профиль (оценки и психотип)?")) {
+          Taste.reset();
+          router();
+        }
+        return;
+      }
       const trigger = e.target.closest("[data-movie]");
       if (trigger) {
         openMovie(trigger.getAttribute("data-movie"));

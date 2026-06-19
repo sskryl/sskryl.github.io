@@ -328,3 +328,36 @@ button { font-family: inherit; cursor: pointer; }
 .skel-card__poster { aspect-ratio: 2 / 3; margin-bottom: 8px; }
 .skel-card__line { height: 12px; width: 80%; }
 .grid .skel-card { width: auto; flex: none; }
+
+/* ============================================================================
+   ПЕРСОНАЛИЗАЦИЯ: «Тиндер» (свайп) и психотест
+   ========================================================================== */
+.swipe { max-width: 560px; margin: 0 auto; }
+.swipe__counter { text-align: center; color: var(--text-dim); font-size: 13px; margin-bottom: 14px; }
+.swipe__card { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); animation: modalIn 0.25s ease; }
+.swipe__poster { position: relative; height: 420px; background-size: cover; background-position: center 15%; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; font-weight: 600; color: var(--text-dim); }
+.swipe__info { padding: 18px 20px; }
+.swipe__title { font-size: 22px; line-height: 1.2; }
+.swipe__year { color: var(--text-mute); font-weight: 400; font-size: 17px; }
+.swipe__genres { color: var(--text-dim); font-size: 13px; margin: 6px 0 10px; }
+.swipe__overview { color: var(--text-dim); font-size: 14px; margin-bottom: 14px; }
+.swipe__details { font-size: 14px; padding: 9px 16px; }
+.swipe__actions { display: flex; justify-content: center; align-items: center; gap: 20px; margin: 22px 0; }
+.swipe__btn { width: 66px; height: 66px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-3); font-size: 26px; cursor: pointer; transition: transform 0.12s, background 0.15s; display: flex; align-items: center; justify-content: center; }
+.swipe__btn:hover { transform: scale(1.1); }
+.swipe__btn--yes:hover { background: rgba(76,175,80,0.25); }
+.swipe__btn--no:hover { background: rgba(255,87,34,0.25); }
+.swipe__btn--skip { width: 52px; height: 52px; font-size: 20px; }
+
+.quiz { max-width: 640px; margin: 30px auto; text-align: center; }
+.quiz__bar { height: 6px; background: var(--bg-3); border-radius: 3px; overflow: hidden; margin-bottom: 18px; }
+.quiz__bar span { display: block; height: 100%; background: var(--accent); transition: width 0.3s; }
+.quiz__step { color: var(--text-dim); font-size: 14px; margin-bottom: 10px; }
+.quiz__q { font-size: 26px; margin-bottom: 24px; }
+.quiz__opts { display: flex; flex-direction: column; gap: 12px; }
+.quiz__opt { text-align: left; background: var(--bg-2); border: 1px solid var(--border); color: var(--text); padding: 16px 18px; border-radius: var(--radius-sm); font-size: 16px; cursor: pointer; transition: 0.15s; }
+.quiz__opt:hover { border-color: var(--accent); background: var(--surface); transform: translateY(-1px); }
+.quiz--result { padding-top: 30px; }
+.quiz__result-emoji { font-size: 60px; }
+.quiz__desc { color: var(--text-dim); font-size: 16px; margin: 14px 0; }
+.quiz__genres { margin-bottom: 24px; }
