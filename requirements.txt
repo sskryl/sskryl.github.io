@@ -1,0 +1,3 @@
+# Корневой файл для платформ, которые ищут зависимости в корне репозитория
+# (Heroku/Railway Python-buildpack и т.п.). Реальный список — в bot/.
+-r bot/requirements.txt

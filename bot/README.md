@@ -52,9 +52,36 @@ python bot.py
 ## Деплой
 
 Бот работает по long-polling, ему нужен постоянно запущенный процесс.
-Подойдёт любой бесплатный/дешёвый хостинг для Python-процесса
-(Railway, Render, Fly.io, VPS, домашний сервер). Не забудьте задать
-переменные окружения `TELEGRAM_BOT_TOKEN` и (опционально) `TMDB_API_KEY`.
+В корне репозитория уже лежат готовые конфиги — выберите удобный способ.
 
-После запуска бота вставьте его username в `assets/js/config.js`
+### Вариант 1. Docker (универсально — VPS, Fly.io, Render, и т.д.)
+
+```bash
+# из корня репозитория
+docker build -t kinovolt-bot .
+docker run -e TELEGRAM_BOT_TOKEN=xxxxx -e TMDB_API_KEY=yyyyy kinovolt-bot
+```
+
+### Вариант 2. docker compose (одна команда)
+
+```bash
+cp bot/.env.example bot/.env   # вписать токен
+docker compose up --build -d
+```
+
+### Вариант 3. Render (по блупринту)
+
+`render.yaml` уже в корне. На [render.com](https://render.com): **New → Blueprint**,
+выбрать этот репозиторий, затем в настройках сервиса задать `TELEGRAM_BOT_TOKEN`
+(и при желании `TMDB_API_KEY`).
+
+### Вариант 4. Railway / Heroku
+
+Есть корневой `Procfile` (`worker: python bot/bot.py`) и `requirements.txt`.
+Создайте проект из репозитория, добавьте переменные окружения и включите worker.
+
+> ⚠️ Не забудьте задать переменные окружения `TELEGRAM_BOT_TOKEN`
+> и (опционально) `TMDB_API_KEY`, `TMDB_LANGUAGE`.
+
+После запуска вставьте username бота в `assets/js/config.js`
 (`telegramBotUrl`), чтобы кнопки на сайте вели на бота.

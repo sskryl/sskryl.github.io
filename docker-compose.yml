@@ -1,0 +1,8 @@
+# Запуск бота одной командой:  docker compose up --build
+# Перед этим создайте bot/.env (см. bot/.env.example) и впишите TELEGRAM_BOT_TOKEN.
+services:
+  bot:
+    build: .
+    env_file:
+      - bot/.env
+    restart: unless-stopped

@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install bot dependencies
+        run: pip install -r bot/requirements.txt
+
+      - name: Compile & import bot modules
+        run: |
+          python -m py_compile bot/*.py
+          cd bot && python -c "import quiz, catalog, recommender, bot; print('bot imports OK')"
+
+      - name: Validate catalog.json
+        run: |
+          python -c "import json; d=json.load(open('data/catalog.json')); assert d['genres'] and d['movies']; print('catalog OK:', len(d['movies']), 'movies')"
+
+      - name: Quiz smoke test
+        run: |
+          cd bot && python -c "import quiz, catalog; a=[(0,3),(1,3),(2,3),(3,1),(4,3),(5,1),(6,3),(7,3)]; s=quiz.score(a); print('archetype:', quiz.detect_archetype(s)['title']); assert quiz.top_genres(s)"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Check JS syntax
+        run: |
+          for f in assets/js/*.js; do node --check "$f"; done
+          echo "JS OK"

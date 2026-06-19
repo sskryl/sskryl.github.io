@@ -1,0 +1,17 @@
+# Render Blueprint для Telegram-бота (https://render.com).
+# Деплой: New + → Blueprint → выбрать этот репозиторий.
+# Затем в дашборде задать TELEGRAM_BOT_TOKEN (и при желании TMDB_API_KEY).
+# Бот работает по long-polling, поэтому это фоновый worker (тариф starter).
+services:
+  - type: worker
+    name: kinovolt-bot
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TMDB_API_KEY
+        sync: false
+      - key: TMDB_LANGUAGE
+        value: ru-RU
