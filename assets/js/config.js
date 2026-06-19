@@ -19,7 +19,7 @@ window.CINEMA_CONFIG = {
 
   // Ключ TMDB API (v3). Оставьте пустым, чтобы работать только на локальном
   // каталоге public-domain фильмов.
-  tmdbApiKey: "",
+  tmdbApiKey: "e7f47dd13caf23736103012d98dff159",
 
   // Язык запросов к TMDB
   tmdbLanguage: "ru-RU",
