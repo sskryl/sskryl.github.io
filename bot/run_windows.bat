@@ -36,7 +36,7 @@ echo Using Python:
 echo.
 
 REM --- Ask for the bot token on first run ---
-if exist token.txt goto deps
+if exist token.txt goto tmdbkey
 echo Open @BotFather in Telegram, copy your bot token, and paste it here.
 echo ^(right-click in this window usually pastes^)
 echo.
@@ -46,6 +46,7 @@ echo.
 echo Token saved to token.txt
 echo.
 
+:tmdbkey
 REM --- Ask for the TMDB key on first run (optional) ---
 if exist tmdb.txt goto deps
 echo (Optional) TMDB key unlocks thousands of movies, anime and new releases.
