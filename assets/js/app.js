@@ -17,11 +17,16 @@
   let tasteVals = null;
   let tasteTimer = null;
   const TASTE_SLIDERS = [
-    { key: "s1", left: "🎈 Лёгкое", right: "Серьёзное 🎭" },
-    { key: "s2", left: "🕰 Классика", right: "Новинки 🚀" },
-    { key: "s3", left: "🌍 Реализм", right: "Фантазия 🐉" },
-    { key: "s4", left: "🧘 Спокойное", right: "Динамичное ⚡" },
+    { key: "s1", left: "🎈 Лёгкое", right: "Серьёзное 🎭", l: "Лёгкое", r: "Серьёзное" },
+    { key: "s2", left: "🕰 Классика", right: "Новинки 🚀", l: "Классика", r: "Новинки" },
+    { key: "s3", left: "🌍 Реализм", right: "Фантазия 🐉", l: "Реализм", r: "Фантазия" },
+    { key: "s4", left: "🧘 Спокойное", right: "Динамичное ⚡", l: "Спокойное", r: "Динамичное" },
   ];
+  function sliderValText(s, v) {
+    if (v <= 38) return "← " + s.l;
+    if (v >= 62) return s.r + " →";
+    return "по центру";
+  }
 
   function scrollTop() {
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -83,6 +88,7 @@
     let html = "";
     html += UI.heroSlider((trend.length ? trend : free).slice(0, 5));
     html += '<div class="container">';
+    if (!Taste.hasProfile()) html += UI.onboarding();
     html += UI.tgBanner();
 
     const history = UI.getHistory();
@@ -355,6 +361,7 @@
     const m = swipeState.pool.shift();
     if (!m) return;
     Taste.rate(m, action === "like");
+    if (window.Sync) Sync.sendRate(m, action === "like");
     swipeState.pool = Taste.rank(swipeState.pool);
     showSwipeCard();
     if (swipeState.pool.length < 3 && !swipeState.loading) {
@@ -512,6 +519,7 @@
       <div class="tslider">
         <div class="tslider__labels"><span>${UI.esc(s.left)}</span><span>${UI.esc(s.right)}</span></div>
         <input type="range" min="0" max="100" value="${tasteVals[s.key]}" class="tslider__input" data-slider="${s.key}" aria-label="${UI.esc(s.left)} — ${UI.esc(s.right)}">
+        <div class="tslider__val" id="val-${s.key}">${UI.esc(sliderValText(s, tasteVals[s.key]))}</div>
       </div>`).join("");
     appEl.innerHTML = `<div class="container taste">
       <div class="page-head"><h1>🎛 Слайдеры вкуса</h1><p>Двигай ползунки — подборка под тобой меняется вживую. Никаких вопросов.</p></div>
@@ -526,7 +534,11 @@
       </div></div>`;
     appEl.querySelectorAll(".tslider__input").forEach((inp) => {
       inp.addEventListener("input", () => {
-        tasteVals[inp.getAttribute("data-slider")] = +inp.value;
+        const key = inp.getAttribute("data-slider");
+        tasteVals[key] = +inp.value;
+        const s = TASTE_SLIDERS.find((x) => x.key === key);
+        const valEl = document.getElementById("val-" + key);
+        if (valEl && s) valEl.textContent = sliderValText(s, +inp.value);
         clearTimeout(tasteTimer);
         tasteTimer = setTimeout(updateTasteResults, 280);
       });
@@ -586,6 +598,42 @@
   }
 
   // ------------------------------------------------------------- ИНИЦИАЛИЗАЦИЯ
+  function renderAuth() {
+    const el = document.getElementById("auth");
+    if (!el) return;
+    if (!window.Sync || !Sync.enabled()) { el.innerHTML = ""; return; }
+    if (Sync.isLoggedIn()) {
+      const u = Sync.user() || {};
+      el.innerHTML = `<div class="auth__user">
+        ${u.photo ? `<img class="auth__ava" src="${UI.esc(u.photo)}" alt="" onerror="this.remove()">` : ""}
+        <span class="auth__name">${UI.esc(u.name || "Профиль")}</span>
+        <button class="auth__out" data-logout title="Выйти">⎋</button></div>`;
+    } else {
+      el.innerHTML = "";
+      const botName = (window.CINEMA_CONFIG || {}).telegramBotName;
+      if (!botName) return;
+      const s = document.createElement("script");
+      s.async = true;
+      s.src = "https://telegram.org/js/telegram-widget.js?22";
+      s.setAttribute("data-telegram-login", botName);
+      s.setAttribute("data-size", "medium");
+      s.setAttribute("data-userpic", "false");
+      s.setAttribute("data-request-access", "write");
+      s.setAttribute("data-onauth", "onTelegramAuth(user)");
+      el.appendChild(s);
+    }
+  }
+
+  window.onTelegramAuth = async function (user) {
+    try {
+      await Sync.login(user);
+      renderAuth();
+      router();
+    } catch (e) {
+      window.alert("Не удалось войти через Telegram. Попробуйте ещё раз.");
+    }
+  };
+
   function initChrome() {
     if (CFG.siteName) {
       document.title = CFG.siteName + " — бесплатный онлайн кинотеатр";
@@ -642,6 +690,12 @@
         }
         return;
       }
+      if (e.target.closest("[data-logout]")) {
+        Sync.logout();
+        renderAuth();
+        router();
+        return;
+      }
       const cardRate = e.target.closest("[data-card-rate]");
       if (cardRate) {
         const id = cardRate.getAttribute("data-rid");
@@ -649,6 +703,7 @@
         if (m) {
           const liked = cardRate.getAttribute("data-card-rate") === "like";
           Taste.rate(m, liked);
+          if (window.Sync) Sync.sendRate(m, liked);
           document.querySelectorAll('[data-card-rate][data-rid="' + id + '"]').forEach((btn) => {
             btn.classList.toggle("is-on", (btn.getAttribute("data-card-rate") === "like") === liked);
           });
@@ -689,6 +744,10 @@
   async function start() {
     initChrome();
     await Api.init();
+    if (window.Sync && Sync.enabled() && Sync.isLoggedIn()) {
+      try { await Sync.pull(); } catch (e) {}
+    }
+    renderAuth();
     window.addEventListener("hashchange", router);
     router();
   }

@@ -26,4 +26,13 @@ window.CINEMA_CONFIG = {
 
   // Ссылка на Telegram-бота с психотестом (показывается баннером на сайте)
   telegramBotUrl: "https://t.me/movie_o_bot",
+
+  // --- Phase 2: вход через Telegram + синхронизация с ботом ---
+  // Имя бота БЕЗ @ (для кнопки «Войти через Telegram»).
+  telegramBotName: "movie_o_bot",
+
+  // Адрес развёрнутого веб-API (bot/web_api.py). Пусто = вход выключен,
+  // сайт работает только на локальном профиле (localStorage).
+  // Пример: "https://kinovolt-api.up.railway.app"
+  apiBaseUrl: "",
 };

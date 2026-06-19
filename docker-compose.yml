@@ -1,8 +1,32 @@
-# Запуск бота одной командой:  docker compose up --build
-# Перед этим создайте bot/.env (см. bot/.env.example) и впишите TELEGRAM_BOT_TOKEN.
+# Запуск бота + веб-API одной командой:  docker compose up --build -d
+# Перед этим создайте bot/.env (см. bot/.env.example) с TELEGRAM_BOT_TOKEN.
+#
+# Бот и API делят одну базу через общий том (volume), поэтому профили
+# пользователей едины: что оценено в боте — видно на сайте, и наоборот.
 services:
   bot:
     build: .
+    command: python bot/bot.py
     env_file:
       - bot/.env
+    environment:
+      - CINEMA_DB=/data/userdata.db
+    volumes:
+      - data:/data
     restart: unless-stopped
+
+  api:
+    build: .
+    command: gunicorn -w 2 -b 0.0.0.0:8080 --chdir bot web_api:app
+    env_file:
+      - bot/.env
+    environment:
+      - CINEMA_DB=/data/userdata.db
+    ports:
+      - "8080:8080"
+    volumes:
+      - data:/data
+    restart: unless-stopped
+
+volumes:
+  data:

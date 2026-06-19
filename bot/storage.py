@@ -17,7 +17,7 @@ import threading
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Set
 
-_DB_PATH = os.path.join(os.path.dirname(__file__), "userdata.db")
+_DB_PATH = os.getenv("CINEMA_DB") or os.path.join(os.path.dirname(__file__), "userdata.db")
 _lock = threading.Lock()
 _conn: Optional[sqlite3.Connection] = None
 
@@ -242,6 +242,26 @@ def get_disliked(user_id: int) -> List[dict]:
             (user_id,),
         ).fetchall()
     return _rows_to_movies(rows)
+
+
+def get_ratings_map(user_id: int) -> Dict[str, int]:
+    """{movie_key: value} — для синхронизации с сайтом."""
+    with _lock:
+        conn = _connect()
+        rows = conn.execute(
+            "SELECT movie_key, value FROM ratings WHERE user_id=?", (user_id,)
+        ).fetchall()
+    return {r["movie_key"]: r["value"] for r in rows}
+
+
+def get_profile(user_id: int) -> dict:
+    """Полный профиль пользователя (для веб-API)."""
+    return {
+        "ratings": get_ratings_map(user_id),
+        "taste_weights": get_taste(user_id),
+        "preferred_genres": get_preferred_genres(user_id),
+        "liked": get_liked(user_id),
+    }
 
 
 def get_genre_affinity(user_id: int) -> Dict[int, int]:

@@ -126,6 +126,25 @@
     return `<section class="hero" id="hero">${slides}<div class="hero__dots">${dots}</div></section>`;
   }
 
+  function onboarding() {
+    return `
+      <section class="onb">
+        <div class="onb__main">
+          <h2 class="onb__title">Не знаешь, что посмотреть?</h2>
+          <p class="onb__sub">Подберём фильм под твоё настроение за 10 секунд. Бесплатно и без регистрации.</p>
+          <div class="onb__cta">
+            <a class="btn btn--lg" href="#/taste">🎛 Подобрать за 10 секунд</a>
+            <a class="btn btn--ghost btn--lg" href="#/swipe">🎬 Листать фильмы</a>
+          </div>
+        </div>
+        <div class="onb__steps">
+          <div class="onb__step"><span class="onb__num">1</span><b>Настрой вкус</b><span>ползунки или свайпы</span></div>
+          <div class="onb__step"><span class="onb__num">2</span><b>Оценивай</b><span>❤️ / 👎 на лету</span></div>
+          <div class="onb__step"><span class="onb__num">3</span><b>Смотри</b><span>личная подборка</span></div>
+        </div>
+      </section>`;
+  }
+
   function tgBanner() {
     const url = (window.CINEMA_CONFIG && window.CINEMA_CONFIG.telegramBotUrl) || "#";
     return `
@@ -251,7 +270,7 @@
   }
 
   window.UI = {
-    card, grid, row, section, heroSlider, tgBanner, empty,
+    card, grid, row, section, heroSlider, tgBanner, onboarding, empty,
     skeletonHome, skeletonGrid, skeletonRow,
     detail, getHistory, addToHistory, esc,
     movie: (id) => reg.get(String(id)),
