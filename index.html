@@ -50,9 +50,20 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="stylesheet" href="assets/css/styles.css?v=2" />
 </head>
 <body>
+  <!-- ===================== ГЛОБАЛЬНЫЙ ПОИСК (самый верх, все страницы) ===================== -->
+  <div class="topsearch">
+    <div class="container">
+      <form class="topsearch__form" id="top-search" data-search role="search">
+        <span class="topsearch__icon">🔍</span>
+        <input class="topsearch__input" type="search" placeholder="Поиск фильма по названию…" autocomplete="off" aria-label="Поиск фильма" />
+        <button class="topsearch__btn" type="submit">Найти</button>
+      </form>
+    </div>
+  </div>
+
   <!-- ===================== ШАПКА ===================== -->
   <header class="header" id="header">
     <div class="container header__inner">
@@ -92,17 +103,6 @@
       </button>
     </div>
   </header>
-
-  <!-- ===================== ГЛОБАЛЬНЫЙ ПОИСК (все страницы) ===================== -->
-  <div class="topsearch">
-    <div class="container">
-      <form class="topsearch__form" id="top-search" data-search role="search">
-        <span class="topsearch__icon">🔍</span>
-        <input class="topsearch__input" type="search" placeholder="Поиск фильма по названию…" autocomplete="off" aria-label="Поиск фильма" />
-        <button class="topsearch__btn" type="submit">Найти</button>
-      </form>
-    </div>
-  </div>
 
   <!-- ===================== ОСНОВНОЙ КОНТЕНТ ===================== -->
   <main id="app">
@@ -166,7 +166,7 @@
   <script src="assets/js/taste.js"></script>
   <script src="assets/js/watchlist.js"></script>
   <script src="assets/js/sync.js"></script>
-  <script src="assets/js/ui.js"></script>
-  <script src="assets/js/app.js"></script>
+  <script src="assets/js/ui.js?v=2"></script>
+  <script src="assets/js/app.js?v=2"></script>
 </body>
 </html>

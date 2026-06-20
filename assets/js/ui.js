@@ -183,7 +183,7 @@
             </div>
             <div class="hero2__trust"><span>🧠 учится на твоём вкусе</span><span>🆓 бесплатно</span><span>⚡ без регистрации</span></div>
           </div>
-          <div class="hero2__new">
+          <div class="hero2__newband">
             <div class="hero2__new-head"><span>🆕 Новинки</span><a href="#/catalog?sort=release_date.desc">Все →</a></div>
             <div class="hero2__new-strip">${strip}</div>
           </div>

@@ -822,3 +822,8 @@ button { font-family: inherit; cursor: pointer; }
 .hero2__new-strip .card { flex: 0 0 132px; width: 132px; scroll-snap-align: start; }
 .hero2__new-strip::-webkit-scrollbar { height: 6px; }
 .hero2__new-strip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Hero + «Новинки» как единый блок: текст сверху, лента новинок снизу */
+.hero2__inner { display: block; }
+.hero2__text { max-width: 760px; }
+.hero2__newband { margin-top: 24px; border-top: 1px solid var(--border); padding-top: 18px; }
