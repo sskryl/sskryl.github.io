@@ -625,3 +625,43 @@ button { font-family: inherit; cursor: pointer; }
   .cat__side .controls { flex-direction: row; flex-wrap: wrap; }
   .cat__side .control { width: auto; }
 }
+
+/* ============================================================================
+   Карточки в стиле hdrezka: закладка «Хочу», насыщенный ховер
+   ========================================================================== */
+.card__poster { position: relative; }
+.card__bm {
+  position: absolute; top: 8px; right: 8px; z-index: 4;
+  width: 30px; height: 30px; border-radius: 50%; border: none; cursor: pointer;
+  background: rgba(0,0,0,0.55); color: #fff; font-size: 16px; line-height: 1; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.15s, background 0.15s, transform 0.15s;
+}
+.card:hover .card__bm { opacity: 1; }
+.card__bm:hover { transform: scale(1.12); }
+.card__bm.is-on { background: var(--accent); opacity: 1; }
+@media (hover: none) { .card__bm { opacity: 1; } }
+
+.card__overlay {
+  position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end;
+  padding: 10px; opacity: 0; transition: opacity 0.18s ease; pointer-events: none;
+  background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.15) 55%, rgba(0,0,0,0));
+}
+.card:hover .card__overlay { opacity: 1; }
+.card__overlay .card__genres {
+  color: #fff; font-size: 12px; line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card__play {
+  position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%);
+  width: 46px; height: 46px; border-radius: 50%; background: rgba(255,87,34,0.92); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+  opacity: 0; transition: opacity 0.18s; z-index: 2;
+}
+.card:hover .card__play { opacity: 1; }
+
+.section__count {
+  margin-left: auto; background: var(--surface); border: 1px solid var(--border);
+  color: var(--text-dim); font-size: 13px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
+}
+.detail__rbtn--watch.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }

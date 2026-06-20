@@ -26,6 +26,14 @@
       </div>`;
   }
 
+  function inList(id) {
+    return !!(window.Watchlist && window.Watchlist.has(id));
+  }
+  function bookmarkBtn(movie) {
+    const on = inList(movie.id);
+    return `<button class="card__bm ${on ? "is-on" : ""}" data-watch="${esc(movie.id)}" aria-label="Хочу посмотреть" title="Хочу посмотреть">${on ? "🔖" : "＋"}</button>`;
+  }
+
   function esc(s) {
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;")
@@ -56,8 +64,11 @@
         <div class="card__poster ${hasPoster ? "" : "card__poster--empty"}">
           ${hasPoster ? poster(movie) : esc(movie.title)}
           ${ratingBadge}${freeBadge}
-          <div class="card__overlay"><span class="card__genres">${esc(genres)}</span></div>
-          <span class="card__play">▶</span>
+          ${bookmarkBtn(movie)}
+          <div class="card__overlay">
+            <span class="card__play">▶</span>
+            <span class="card__genres">${esc(genres)}</span>
+          </div>
           ${quickRate(movie)}
         </div>
         <div class="card__body">
@@ -309,6 +320,7 @@
             <div class="detail__rate">
               <button class="detail__rbtn detail__rbtn--yes ${st === 1 ? "is-on" : ""}" data-card-rate="like" data-rid="${esc(movie.id)}">❤️ Нравится</button>
               <button class="detail__rbtn detail__rbtn--no ${st === -1 ? "is-on" : ""}" data-card-rate="dislike" data-rid="${esc(movie.id)}">👎 Не нравится</button>
+              <button class="detail__rbtn detail__rbtn--watch ${inList(movie.id) ? "is-on" : ""}" data-watch="${esc(movie.id)}">${inList(movie.id) ? "🔖 В списке" : "＋ Хочу посмотреть"}</button>
               <button class="detail__rbtn" data-share="${esc(movie.title)}">🔗 Поделиться</button>
             </div>
             <p class="detail__overview">${esc(movie.overview || "Описание недоступно.")}</p>

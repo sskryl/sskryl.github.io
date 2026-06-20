@@ -456,10 +456,16 @@
 
   function renderMy() {
     stopHero();
+    const wl = window.Watchlist ? Watchlist.all() : [];
     const liked = Taste.liked();
     const s = Taste.stats();
-    let html = `<div class="container"><div class="page-head"><h1>❤️ Моё</h1><p>Оценено: ${s.total} (❤️ ${s.liked} · 👎 ${s.disliked})</p></div>`;
-    html += liked.length ? UI.grid(liked) : UI.empty("Пока пусто. Оцените фильмы в разделе «🎬 Подбор».");
+    let html = `<div class="container"><div class="page-head"><h1>❤️ Моё</h1><p>В списке: ${wl.length} · Оценено: ${s.total} (❤️ ${s.liked} · 👎 ${s.disliked})</p></div>`;
+    if (wl.length) {
+      html += `<section class="section"><div class="section__head"><h2 class="section__title">🔖 Хочу посмотреть</h2><span class="section__count">${wl.length}</span></div>${UI.grid(wl)}</section>`;
+    }
+    html += `<section class="section"><div class="section__head"><h2 class="section__title">❤️ Понравилось</h2></div>`;
+    html += liked.length ? UI.grid(liked) : UI.empty("Пока пусто. Оцените фильмы в разделе «🎯 Подбор» или нажмите ＋ на постере, чтобы добавить в список.");
+    html += `</section>`;
     html += `<div class="load-more"><button class="btn btn--ghost" data-reset>🗑 Сбросить мой профиль</button></div></div>`;
     appEl.innerHTML = html;
     scrollTop();
@@ -1001,6 +1007,24 @@
           });
           const cardEl = cardRate.closest(".card");
           if (cardEl) cardEl.classList.add("card--rated");
+        }
+        return;
+      }
+      const watchBtn = e.target.closest("[data-watch]");
+      if (watchBtn) {
+        const id = watchBtn.getAttribute("data-watch");
+        const m = UI.movie(id) || (window.Watchlist && Watchlist.all().find((x) => String(x.id) === String(id)));
+        if (m && window.Watchlist) {
+          Watchlist.toggle(m);
+          const on = Watchlist.has(id);
+          document.querySelectorAll("[data-watch]").forEach((b) => {
+            if (b.getAttribute("data-watch") === String(id)) {
+              b.classList.toggle("is-on", on);
+              if (b.classList.contains("detail__rbtn--watch")) b.innerHTML = on ? "🔖 В списке" : "＋ Хочу посмотреть";
+              else if (b.classList.contains("card__bm")) b.textContent = on ? "🔖" : "＋";
+            }
+          });
+          if ((location.hash || "").indexOf("#/my") === 0) renderMy();
         }
         return;
       }
