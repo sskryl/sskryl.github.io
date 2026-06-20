@@ -539,3 +539,40 @@ button { font-family: inherit; cursor: pointer; }
   .hero2__title { font-size: 30px; }
   .hero2__sub { font-size: 15px; }
 }
+
+/* ============================================================================
+   «ТОЧНЫЙ ПОДБОР» — мастер (свайпы → дуэли → кинопрофиль)
+   ========================================================================== */
+.match { max-width: 720px; margin: 0 auto; }
+.match__bar { height: 6px; background: var(--bg-3); border-radius: 3px; overflow: hidden; margin: 24px 0 14px; }
+.match__bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.3s; }
+.match__hint { text-align: center; color: var(--text-dim); font-size: 14px; margin-bottom: 16px; }
+.match__intro, .match__reveal { text-align: center; padding: 28px 0; animation: fadeIn 0.35s ease; }
+.match__emoji { font-size: 58px; }
+.match__intro h1, .match__reveal h1 { font-size: 30px; margin: 8px 0 10px; }
+.match__lead { color: var(--text-dim); font-size: 16px; margin-bottom: 22px; }
+.match__steps { display: flex; gap: 14px; justify-content: center; margin-bottom: 26px; flex-wrap: wrap; }
+.match__step { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px 20px; min-width: 160px; }
+.match__step span { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; margin: 0 auto 6px; }
+.match__step b { font-size: 15px; display: block; }
+.match__step i { font-size: 13px; color: var(--text-mute); font-style: normal; }
+
+.duel { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; margin-bottom: 18px; }
+.duel__card { background: none; border: none; cursor: pointer; padding: 0; text-align: center; transition: transform 0.15s; }
+.duel__card:hover { transform: translateY(-4px); }
+.duel__poster { aspect-ratio: 2 / 3; border-radius: var(--radius-sm); overflow: hidden; background-size: cover; background-position: center; box-shadow: var(--shadow); border: 2px solid transparent; transition: border-color 0.15s; }
+.duel__card:hover .duel__poster { border-color: var(--accent); }
+.duel__title { margin-top: 10px; font-size: 14px; font-weight: 600; color: var(--text); }
+.duel__title span { color: var(--text-mute); font-weight: 400; }
+.duel__vs { font-weight: 800; color: var(--accent); font-size: 20px; }
+
+.reveal__arch { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+.reveal__desc { color: var(--text-dim); max-width: 520px; margin: 0 auto 18px; }
+.dna { display: flex; gap: 6px; max-width: 460px; margin: 0 auto 18px; }
+.dna__seg { flex: 1; background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #fff; padding: 11px 8px; border-radius: 8px; font-size: 13px; font-weight: 700; text-align: center; box-shadow: var(--shadow); }
+.dna__seg:nth-child(2) { background: linear-gradient(90deg, var(--accent-tg), #5cc6f5); }
+.dna__seg:nth-child(3) { background: linear-gradient(90deg, #9aa0b0, #c2c7d4); }
+.reveal__rows { display: inline-flex; flex-direction: column; gap: 6px; text-align: left; margin: 0 auto; }
+.reveal__row { color: var(--text-dim); font-size: 15px; }
+.reveal__row b { color: var(--text); }
+@media (max-width: 600px) { .match__step { min-width: 0; flex: 1; } .duel__vs { font-size: 16px; } }

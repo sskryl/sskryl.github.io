@@ -33,7 +33,7 @@
   }
 
   function routeKey(h) {
-    if (["#/taste", "#/swipe", "#/quiz", "#/foryou"].some((r) => h.indexOf(r) === 0)) return "podbor";
+    if (["#/match", "#/taste", "#/swipe", "#/quiz", "#/foryou"].some((r) => h.indexOf(r) === 0)) return "podbor";
     if (h.indexOf("#/my") === 0) return "my";
     if (h.indexOf("#/catalog") === 0 && h.indexOf("release_date") >= 0) return "new";
     if (h.indexOf("#/catalog") === 0 || h.indexOf("#/free") === 0) return "catalog";
@@ -576,6 +576,178 @@
     scrollTop();
   }
 
+  // ===================== «ТОЧНЫЙ ПОДБОР» — геймифицированный мастер =========
+  const MATCH_SWIPES = 8;
+  const MATCH_DUELS = 6;
+  let matchState = null;
+
+  function mShell(inner) {
+    appEl.innerHTML = `<div class="container match">${inner}</div>`;
+    scrollTop();
+  }
+  function mProgress() {
+    const total = MATCH_SWIPES + MATCH_DUELS;
+    const done = Math.min(matchState.swipes, MATCH_SWIPES) + Math.min(matchState.duels, MATCH_DUELS);
+    return Math.round((done / total) * 100);
+  }
+  function mBar() {
+    return `<div class="match__bar"><span style="width:${mProgress()}%"></span></div>`;
+  }
+
+  function renderMatch() {
+    stopHero();
+    if (!matchState) matchState = { phase: "intro", pool: [], swipes: 0, duels: 0, pair: [], duelPool: [] };
+    if (matchState.phase === "swipe") return mSwipeCard();
+    if (matchState.phase === "duel") return mDuelPair();
+    if (matchState.phase === "reveal") return mReveal();
+    return mIntro();
+  }
+
+  function mIntro() {
+    matchState = { phase: "intro", pool: [], swipes: 0, duels: 0, pair: [], duelPool: [] };
+    mShell(`
+      <div class="match__intro">
+        <div class="match__emoji">🎯</div>
+        <h1>Точный подбор за минуту</h1>
+        <p class="match__lead">Два шага — и я соберу твой кинопрофиль. Никаких занудных вопросов.</p>
+        <div class="match__steps">
+          <div class="match__step"><span>1</span><b>Свайпы</b><i>оцени фильмы ❤️ / 👎</i></div>
+          <div class="match__step"><span>2</span><b>Дуэли</b><i>выбери, что бы посмотрел</i></div>
+        </div>
+        <button class="btn btn--lg" data-match="start">Поехали →</button>
+      </div>`);
+  }
+
+  async function mStart() {
+    matchState.phase = "swipe";
+    matchState.swipes = 0;
+    mShell(`<div class="loader"><div class="spinner"></div></div>`);
+    matchState.pool = await buildSwipePool();
+    if (!matchState.pool.length) { mShell(UI.empty("Не удалось загрузить фильмы. Попробуй позже.", "⚠️")); return; }
+    mSwipeCard();
+  }
+
+  function mSwipeCard() {
+    if (!matchState.pool.length) { mStartDuels(); return; }
+    const m = matchState.pool[0];
+    const genres = Api.genreNames(m.genres, 3).join(" • ");
+    mShell(`
+      ${mBar()}
+      <div class="match__hint">Шаг 1 из 2 · Оцени фильмы (${Math.min(matchState.swipes, MATCH_SWIPES)}/${MATCH_SWIPES})</div>
+      <div class="swipe">
+        <div class="swipe__card">
+          <div class="swipe__poster ${m.poster ? "" : "card__poster--empty"}" style="${m.poster ? `background-image:url('${UI.esc(m.poster)}')` : ""}">${m.poster ? "" : UI.esc(m.title)}${m.rating ? `<span class="card__rating">★ ${UI.esc(m.rating)}</span>` : ""}</div>
+          <div class="swipe__info"><h2 class="swipe__title">${UI.esc(m.title)} ${m.year ? `<span class="swipe__year">${UI.esc(m.year)}</span>` : ""}</h2><p class="swipe__genres">${UI.esc(genres)}</p></div>
+        </div>
+        <div class="swipe__actions">
+          <button class="swipe__btn swipe__btn--no" data-mrate="dislike" aria-label="Не нравится">👎</button>
+          <button class="swipe__btn swipe__btn--skip" data-mskip aria-label="Пропустить">⏭</button>
+          <button class="swipe__btn swipe__btn--yes" data-mrate="like" aria-label="Нравится">❤️</button>
+        </div>
+      </div>`);
+  }
+
+  async function mRate(action) {
+    const m = matchState.pool.shift();
+    if (m) { Taste.rate(m, action === "like"); if (window.Sync) Sync.sendRate(m, action === "like"); }
+    matchState.swipes++;
+    matchState.pool = Taste.rank(matchState.pool);
+    if (matchState.swipes >= MATCH_SWIPES) { await mStartDuels(); return; }
+    if (matchState.pool.length < 2) {
+      const more = await buildSwipePool();
+      const have = new Set(matchState.pool.map((x) => x.id));
+      more.forEach((x) => { if (!have.has(x.id)) matchState.pool.push(x); });
+    }
+    mSwipeCard();
+  }
+  function mSkip() {
+    matchState.pool.shift();
+    if (!matchState.pool.length) { mStartDuels(); return; }
+    mSwipeCard();
+  }
+
+  async function mStartDuels() {
+    matchState.phase = "duel";
+    matchState.duels = 0;
+    mShell(`<div class="loader"><div class="spinner"></div></div>`);
+    matchState.duelPool = await buildSwipePool();
+    if (matchState.duelPool.length < 2) { mReveal(); return; }
+    mDuelPair();
+  }
+
+  function mDuelCard(m) {
+    return `<button class="duel__card" data-mduel="${UI.esc(m.id)}">
+      <div class="duel__poster ${m.poster ? "" : "card__poster--empty"}" style="${m.poster ? `background-image:url('${UI.esc(m.poster)}')` : ""}">${m.poster ? "" : UI.esc(m.title)}</div>
+      <div class="duel__title">${UI.esc(m.title)} ${m.year ? `<span>${UI.esc(m.year)}</span>` : ""}</div></button>`;
+  }
+  function mDuelPair() {
+    if (matchState.duelPool.length < 2) { mReveal(); return; }
+    const a = matchState.duelPool[0], b = matchState.duelPool[1];
+    matchState.pair = [a, b];
+    mShell(`
+      ${mBar()}
+      <div class="match__hint">Шаг 2 из 2 · Что бы ты посмотрел? (${Math.min(matchState.duels, MATCH_DUELS)}/${MATCH_DUELS})</div>
+      <div class="duel">${mDuelCard(a)}<div class="duel__vs">VS</div>${mDuelCard(b)}</div>
+      <div style="text-align:center"><button class="btn btn--ghost duel__skip" data-mduel="skip">Оба мимо →</button></div>`);
+  }
+
+  async function mPick(key) {
+    const [a, b] = matchState.pair;
+    if (key !== "skip") {
+      const chosen = a.id === key ? a : b;
+      Taste.rate(chosen, true);
+      if (window.Sync) Sync.sendRate(chosen, true);
+    }
+    matchState.duelPool = matchState.duelPool.filter((m) => m.id !== a.id && m.id !== b.id);
+    matchState.duels++;
+    if (matchState.duels >= MATCH_DUELS) { await mReveal(); return; }
+    if (matchState.duelPool.length < 2) {
+      const more = await buildSwipePool();
+      const have = new Set(matchState.duelPool.map((x) => x.id));
+      more.forEach((x) => { if (!have.has(x.id)) matchState.duelPool.push(x); });
+    }
+    mDuelPair();
+  }
+
+  async function mReveal() {
+    matchState.phase = "reveal";
+    const weights = Taste.getWeights();
+    const scores = {};
+    Object.keys(weights).forEach((k) => { if (k.indexOf("g:") === 0 && weights[k] > 0) scores[+k.slice(2)] = weights[k]; });
+    const arch = window.Quiz && Object.keys(scores).length ? Quiz.detect(scores) : null;
+    const topGenres = Taste.topGenres(3).map((g) => Api.genreName(g)).filter(Boolean);
+    const eraLean = weights["recent"] > 0.4 ? "современное кино" : (weights["era:classic"] > 0.4 ? "классику" : "разные эпохи");
+    const dna = topGenres.map((g, i) => `<div class="dna__seg" style="flex:${3 - i}">${UI.esc(g)}</div>`).join("");
+    mShell(`
+      <div class="match__reveal">
+        <div class="match__emoji">✨</div>
+        <h1>Твой кинопрофиль готов!</h1>
+        ${arch ? `<div class="reveal__arch">${UI.esc(arch.title)}</div><p class="reveal__desc">${UI.esc(arch.desc)}</p>` : ""}
+        ${topGenres.length ? `<div class="dna">${dna}</div>` : ""}
+        <div class="reveal__rows">
+          <div class="reveal__row"><b>🎯 Любимые жанры:</b> ${UI.esc(topGenres.join(", ") || "—")}</div>
+          <div class="reveal__row"><b>🕰 Предпочитаешь:</b> ${UI.esc(eraLean)}</div>
+        </div>
+        <div class="hero2__cta" style="justify-content:center;margin-top:20px">
+          <a class="btn btn--lg" href="#/foryou">✨ Смотреть подборку</a>
+          <button class="btn btn--ghost" data-share="мой кинопрофиль">🔗 Поделиться</button>
+          <button class="btn btn--ghost" data-match="restart">↻ Заново</button>
+        </div>
+      </div>
+      <div id="match-recs"></div>`);
+    mLoadRecs();
+  }
+
+  async function mLoadRecs() {
+    const box = document.getElementById("match-recs");
+    if (!box) return;
+    box.innerHTML = `<div class="container">${UI.skeletonGrid()}</div>`;
+    const pool = await buildSwipePool();
+    box.innerHTML = pool.length
+      ? `<div class="container"><div class="section"><div class="section__head"><h2 class="section__title">🎬 Тебе зайдёт</h2></div>${UI.grid(pool.slice(0, 12))}</div></div>`
+      : "";
+  }
+
   // ------------------------------------------------------------- МОДАЛКА
   async function openMovie(id) {
     modalEl.classList.add("is-open");
@@ -615,6 +787,7 @@
     if (parts.length === 0) return renderHome();
     if (parts[0] === "catalog" && parts[1] === "genre") return renderCatalog(parts[2], query);
     if (parts[0] === "catalog") return renderCatalog(null, query);
+    if (parts[0] === "match") return renderMatch();
     if (parts[0] === "swipe") return renderSwipe();
     if (parts[0] === "foryou") return renderForYou();
     if (parts[0] === "my") return renderMy();
@@ -729,6 +902,20 @@
       if (!e.target.closest(".nav__dd")) {
         document.querySelectorAll(".nav__dd.is-open").forEach((x) => x.classList.remove("is-open"));
       }
+
+      // Мастер «Точный подбор»
+      const mt = e.target.closest("[data-match]");
+      if (mt) {
+        const a = mt.getAttribute("data-match");
+        if (a === "start") mStart();
+        else if (a === "restart") { matchState = null; renderMatch(); }
+        return;
+      }
+      const mr = e.target.closest("[data-mrate]");
+      if (mr) { mRate(mr.getAttribute("data-mrate")); return; }
+      if (e.target.closest("[data-mskip]")) { mSkip(); return; }
+      const md = e.target.closest("[data-mduel]");
+      if (md) { mPick(md.getAttribute("data-mduel")); return; }
 
       const rateBtn = e.target.closest("[data-rate]");
       if (rateBtn) {

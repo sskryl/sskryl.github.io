@@ -169,7 +169,7 @@
             <p class="hero2__sub">Выбери настроение — и получи фильм за 10 секунд. Бесплатно и без регистрации.</p>
             <div class="hero2__moods">${moods}</div>
             <div class="hero2__cta">
-              <a class="btn btn--lg" href="#/taste">🎛 Точный подбор</a>
+              <a class="btn btn--lg" href="#/match">🎯 Точный подбор</a>
               <a class="btn btn--ghost btn--lg" href="#/swipe">🎬 Листать фильмы</a>
             </div>
           </div>

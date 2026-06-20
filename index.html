@@ -25,27 +25,22 @@
 
       <nav class="nav" id="nav">
         <a href="#/" class="nav__link">Главная</a>
-        <div class="nav__dd">
-          <button class="nav__link nav__ddbtn" data-dropdown data-ddkey="catalog" aria-haspopup="true" aria-expanded="false">Каталог <span class="nav__caret">▾</span></button>
-          <div class="nav__menu">
-            <a href="#/catalog?sort=popularity.desc" class="nav__menulink">🔥 Популярное</a>
-            <a href="#/catalog?sort=release_date.desc" class="nav__menulink">🆕 Новинки</a>
-            <a href="#/catalog?sort=vote_average.desc" class="nav__menulink">⭐ Топ рейтинга</a>
-            <a href="#/catalog/genre/16" class="nav__menulink">🧸 Мультфильмы</a>
-            <a href="#/catalog/genre/anime" class="nav__menulink">🎌 Аниме</a>
-            <a href="#/free" class="nav__menulink">🆓 Бесплатно</a>
-          </div>
-        </div>
+        <a href="#/catalog" class="nav__link">Фильмы</a>
+        <a href="#/catalog/genre/16" class="nav__link">Мультфильмы</a>
+        <a href="#/catalog/genre/anime" class="nav__link">Аниме</a>
+        <a href="#/catalog?sort=release_date.desc" class="nav__link">Новинки</a>
         <div class="nav__dd">
           <button class="nav__link nav__ddbtn nav__ddbtn--accent" data-dropdown data-ddkey="podbor" aria-haspopup="true" aria-expanded="false">✨ Подобрать <span class="nav__caret">▾</span></button>
           <div class="nav__menu nav__menu--wide">
+            <a href="#/match" class="nav__usp"><span class="nav__usp__i">🎯</span><span class="nav__usp__t"><b>Точный подбор</b><i>свайпы + дуэли → кинопрофиль</i></span></a>
             <a href="#/taste" class="nav__usp"><span class="nav__usp__i">🎛</span><span class="nav__usp__t"><b>Под настроение</b><i>нужный фильм за 10 секунд</i></span></a>
             <a href="#/swipe" class="nav__usp"><span class="nav__usp__i">🎬</span><span class="nav__usp__t"><b>Свайпы (Тиндер)</b><i>листай и оценивай ❤️/👎</i></span></a>
             <a href="#/quiz" class="nav__usp"><span class="nav__usp__i">🧠</span><span class="nav__usp__t"><b>Психотест</b><i>кино под твой характер</i></span></a>
             <a href="#/foryou" class="nav__usp"><span class="nav__usp__i">✨</span><span class="nav__usp__t"><b>Для вас</b><i>ИИ учится на ваших оценках</i></span></a>
+            <a href="#/my" class="nav__usp"><span class="nav__usp__i">❤️</span><span class="nav__usp__t"><b>Моё</b><i>что понравилось</i></span></a>
           </div>
         </div>
-        <a href="#/my" class="nav__link">❤️ Моё</a>
+        <a href="#/free" class="nav__link nav__link--accent">Бесплатно</a>
       </nav>
 
       <form class="search" id="search" role="search">
@@ -73,7 +68,7 @@
   <nav class="bottomnav" id="bottomnav" aria-label="Навигация">
     <a href="#/" data-bn="home"><span class="bottomnav__i">🏠</span>Главная</a>
     <a href="#/catalog" data-bn="catalog"><span class="bottomnav__i">🎬</span>Каталог</a>
-    <a href="#/taste" data-bn="podbor" class="bottomnav__center"><span class="bottomnav__i">✨</span>Подбор</a>
+    <a href="#/match" data-bn="podbor" class="bottomnav__center"><span class="bottomnav__i">🎯</span>Подбор</a>
     <a href="#/catalog?sort=release_date.desc" data-bn="new"><span class="bottomnav__i">🆕</span>Новинки</a>
     <a href="#/my" data-bn="my"><span class="bottomnav__i">❤️</span>Моё</a>
   </nav>
