@@ -18,12 +18,23 @@ import threading
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Set
 
-_DB_PATH = os.getenv("CINEMA_DB") or os.path.join(os.path.dirname(__file__), "userdata.db")
+def _default_db_path() -> str:
+    env = os.getenv("CINEMA_DB")
+    if env:
+        return env
+    # На Vercel/serverless файловая система только для чтения, писать можно в /tmp
+    if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+        return "/tmp/kinoflex.db"
+    return os.path.join(os.path.dirname(__file__), "userdata.db")
+
+
+_DB_PATH = _default_db_path()
 _TURSO_URL = os.getenv("TURSO_DATABASE_URL")
 _TURSO_TOKEN = os.getenv("TURSO_AUTH_TOKEN")
 
 _lock = threading.Lock()
 _conn = None
+_initialized = False
 
 LIKE = 1
 DISLIKE = -1
@@ -98,6 +109,14 @@ def init_db() -> None:
         if "taste_weights" not in cols:
             conn.execute("ALTER TABLE users ADD COLUMN taste_weights TEXT")
         conn.commit()
+
+
+def ensure_db() -> None:
+    """Ленивая идемпотентная инициализация (для serverless — не на импорте)."""
+    global _initialized
+    if not _initialized:
+        init_db()
+        _initialized = True
 
 
 # --------------------------------------------------------------- users

@@ -27,7 +27,6 @@ import storage
 import taste
 
 load_dotenv()
-storage.init_db()
 
 
 def _read_token() -> str:
@@ -49,11 +48,18 @@ SESSION_TTL = 30 * 24 * 3600  # 30 дней
 app = Flask(__name__)
 
 
-# --------------------------------------------------------------- CORS
+# --------------------------------------------------------------- CORS + init
 @app.before_request
-def _preflight():
+def _before():
     if request.method == "OPTIONS":
         return ("", 204)
+    if request.path == "/api/health":
+        return None
+    try:
+        storage.ensure_db()
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": "db_unavailable", "detail": str(exc)}), 500
+    return None
 
 
 @app.after_request
@@ -135,6 +141,23 @@ def _apply_rating(uid: int, movie: dict, value: int, known: set) -> None:
 @app.get("/")
 def health():
     return jsonify({"ok": True, "service": "kinoflex-api"})
+
+
+@app.get("/api/health")
+def health_api():
+    info = {
+        "ok": True,
+        "service": "kinoflex-api",
+        "db": "turso" if os.getenv("TURSO_DATABASE_URL") else "sqlite",
+        "bot_token": bool(BOT_TOKEN),
+    }
+    try:
+        storage.ensure_db()
+        info["db_ok"] = True
+    except Exception as exc:  # noqa: BLE001
+        info["db_ok"] = False
+        info["db_error"] = str(exc)
+    return jsonify(info)
 
 
 @app.post("/api/auth/telegram")
