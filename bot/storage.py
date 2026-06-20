@@ -48,11 +48,16 @@ def _connect():
     global _conn
     if _conn is None:
         if _TURSO_URL:
-            import libsql_experimental as libsql  # ленивый импорт: нужен только для Turso
+            try:
+                import libsql_experimental as libsql  # ленивый импорт, только для Turso
 
-            _conn = libsql.connect(database=_TURSO_URL, auth_token=_TURSO_TOKEN)
-        else:
-            _conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
+                _conn = libsql.connect(database=_TURSO_URL, auth_token=_TURSO_TOKEN)
+                return _conn
+            except Exception as exc:  # noqa: BLE001
+                # libsql не установлен/не доступен — мягко падаем на SQLite,
+                # чтобы функция не падала целиком (на serverless — /tmp).
+                print(f"[storage] Turso недоступен, использую SQLite: {exc}")
+        _conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
     return _conn
 
 

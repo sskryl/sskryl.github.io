@@ -1,5 +1,4 @@
 # Зависимости serverless-функции веб-API на Vercel (api/index.py).
-# Намеренно без python-telegram-bot — функции нужен только API + общая база.
+# Только то, что точно ставится из колёс (без нативных сборок).
 flask==3.0.3
 python-dotenv==1.0.1
-libsql-experimental
