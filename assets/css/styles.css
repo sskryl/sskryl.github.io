@@ -740,3 +740,8 @@ button { font-family: inherit; cursor: pointer; }
 .nav__personal-h { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); font-weight: 700; padding: 4px 12px 6px; }
 .nav__personal-link { display: block; padding: 8px 12px; border-radius: 8px; color: var(--text); font-size: 14px; transition: background 0.12s; }
 .nav__personal-link:hover { background: var(--surface); color: var(--accent); }
+
+/* --- Тиндер-замена карточки после оценки --- */
+.card { transition: opacity 0.25s ease, transform 0.2s ease, box-shadow 0.2s ease; }
+.card--swap { opacity: 0.35; transform: scale(0.96); pointer-events: none; }
+.card--enter { opacity: 0; transform: translateY(10px) scale(0.96); }

@@ -868,6 +868,49 @@
     modalContentEl.innerHTML = "";
   }
 
+  // Замена карточки на новую рекомендацию после оценки (тиндер-поведение везде)
+  let recoPool = [];
+  let recoLoading = null;
+  function refillReco() {
+    if (recoLoading) return recoLoading;
+    recoLoading = buildSwipePool()
+      .then((p) => {
+        const have = new Set(recoPool.map((m) => String(m.id)));
+        p.forEach((m) => { if (!have.has(String(m.id))) recoPool.push(m); });
+        recoLoading = null;
+      })
+      .catch(() => { recoLoading = null; });
+    return recoLoading;
+  }
+  async function nextReco() {
+    if (recoPool.length < 4) await refillReco();
+    recoPool = Taste.rank(recoPool); // переранжируем под обновлённый вкус
+    const onPage = new Set(
+      Array.prototype.map.call(document.querySelectorAll("[data-movie]"), (e) => e.getAttribute("data-movie"))
+    );
+    const rated = Taste.getRatings ? Taste.getRatings() : {};
+    while (recoPool.length) {
+      const m = recoPool.shift();
+      const id = String(m.id);
+      if (onPage.has(id) || rated[id]) continue;
+      return m;
+    }
+    return null;
+  }
+  async function replaceCardWithReco(cardEl) {
+    if (!cardEl || !cardEl.parentNode) return;
+    cardEl.classList.add("card--swap");
+    const m = await nextReco();
+    if (!m || !cardEl.parentNode) { if (cardEl) cardEl.classList.remove("card--swap"); return; }
+    const tmp = document.createElement("div");
+    tmp.innerHTML = UI.card(m);
+    const fresh = tmp.firstElementChild;
+    if (!fresh) { cardEl.classList.remove("card--swap"); return; }
+    fresh.classList.add("card--enter");
+    cardEl.replaceWith(fresh);
+    requestAnimationFrame(() => fresh.classList.remove("card--enter"));
+  }
+
   // Персонализация меню: блок «Ваши жанры» в выпадашке «Подобрать»
   function applyPersonalNav() {
     const menu = document.querySelector(".nav__menu--wide");
@@ -1077,11 +1120,16 @@
           const liked = cardRate.getAttribute("data-card-rate") === "like";
           Taste.rate(m, liked);
           if (window.Sync) Sync.sendRate(m, liked);
-          document.querySelectorAll('[data-card-rate][data-rid="' + id + '"]').forEach((btn) => {
-            btn.classList.toggle("is-on", (btn.getAttribute("data-card-rate") === "like") === liked);
-          });
           const cardEl = cardRate.closest(".card");
-          if (cardEl) cardEl.classList.add("card--rated");
+          if (cardEl) {
+            // Тиндер-поведение: после оценки заменяем карточку новой рекомендацией
+            replaceCardWithReco(cardEl);
+          } else {
+            // В модалке фильма карточки нет — просто отмечаем кнопки
+            document.querySelectorAll('[data-card-rate][data-rid="' + id + '"]').forEach((btn) => {
+              btn.classList.toggle("is-on", (btn.getAttribute("data-card-rate") === "like") === liked);
+            });
+          }
         }
         return;
       }
