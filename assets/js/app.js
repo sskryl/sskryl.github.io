@@ -128,6 +128,42 @@
     }, 6000);
   }
 
+  // ---- Воронка активации новичка ----
+  const FUNNEL_GOAL = 5;
+  function funnelBlock(movies) {
+    const total = Taste.stats().total;
+    const pct = Math.min(100, Math.round((total / FUNNEL_GOAL) * 100));
+    const cards = (movies || []).map(UI.card).join("");
+    return `
+      <section class="funnel">
+        <div class="funnel__head">
+          <span class="funnel__badge">🍷 соберём твой вкус</span>
+          <h2 class="funnel__title">Оцени фильмы — и подберём кино под тебя</h2>
+          <p class="funnel__sub">Жми ❤️ или 👎 на постерах. Чем больше оценишь — тем точнее подбор.</p>
+        </div>
+        <div class="funnel__progress">
+          <div class="funnel__track"><div class="funnel__bar" id="funnel-bar" style="width:${pct}%"></div></div>
+          <span class="funnel__count" id="funnel-count">оценено ${total} из ${FUNNEL_GOAL}</span>
+        </div>
+        <div class="funnel__deck">${cards}</div>
+        <div class="funnel__alt">или <a href="#/match">🎯 Точный подбор</a> · <a href="#/taste">🎛 по настроению</a></div>
+      </section>`;
+  }
+  function updateFunnel() {
+    const bar = document.getElementById("funnel-bar");
+    if (!bar) return;
+    const total = Taste.stats().total;
+    if (total >= FUNNEL_GOAL) {
+      // Активация — раскрываем персональную главную
+      renderHome();
+      toast("✨ Готово! Собрал твою персональную подборку");
+      return;
+    }
+    bar.style.width = Math.min(100, (total / FUNNEL_GOAL) * 100) + "%";
+    const cnt = document.getElementById("funnel-count");
+    if (cnt) cnt.textContent = "оценено " + total + " из " + FUNNEL_GOAL;
+  }
+
   async function renderHome() {
     stopHero();
     appEl.innerHTML = UI.skeletonHome();
@@ -147,6 +183,13 @@
     ));
     const heroBg = heroBgPool.length ? { backdrop: heroBgPool[0] } : null;
     let html = "";
+    // ВОРОНКА: новичку — блок активации «оцени фильмы» с прогрессом
+    const activated = Taste.stats().total >= FUNNEL_GOAL;
+    const funnelDeck = (freshList.length ? freshList : trend.length ? trend : free).slice(0, 12);
+    if (!activated) {
+      html += '<div class="container">' + funnelBlock(funnelDeck) + "</div>";
+    }
+
     // Hero (кинокадр на фоне) + «Новинки» объединены в один блок
     html += UI.hero2((freshList.length ? freshList : free).slice(0, 12), heroBg);
     html += '<div class="container">';
@@ -170,6 +213,8 @@
     appEl.innerHTML = html;
     if (window.Ads) Ads.activate();
     startHeroBg(shuffle(heroBgPool));
+    // Обогащаем колоду воронки в фоне — те же объекты, что в карточках (для умного обучения)
+    if (!activated) Api.enrichMany(funnelDeck, 12);
 
     // Тематические ряды догружаем после основной отрисовки.
     // Есть профиль — собираем ряды под топ-жанры пользователя; иначе — общие подборки.
@@ -1248,6 +1293,7 @@
           Taste.rate(m, liked);
           if (window.Sync) Sync.sendRate(m, liked);
           toast(liked ? "❤️ Запомню — подберём похожее" : "👎 Понял, меньше такого");
+          updateFunnel();
           const cardEl = cardRate.closest(".card");
           const featEl = cardRate.closest(".fhero");
           if (cardEl) {
