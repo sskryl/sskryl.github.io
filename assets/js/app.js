@@ -1014,6 +1014,22 @@
     requestAnimationFrame(() => fresh.classList.remove("card--enter"));
   }
 
+  // Короткое всплывающее уведомление (тост)
+  let toastTimer = null;
+  function toast(msg) {
+    let el = document.getElementById("toast");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "toast";
+      el.className = "toast";
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.classList.add("is-show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("is-show"), 2200);
+  }
+
   // Персонализация меню: блок «Ваши жанры» в выпадашке «Подобрать»
   function applyPersonalNav() {
     const menu = document.querySelector(".nav__menu--wide");
@@ -1195,6 +1211,7 @@
         if (window.confirm("Сбросить ваш профиль (оценки и психотип)?")) {
           Taste.reset();
           router();
+          toast("Профиль сброшен");
         }
         return;
       }
@@ -1219,6 +1236,7 @@
       }
       if (e.target.closest("[data-refeat]")) {
         renderFeaturedInto(document.getElementById("feat-hero"));
+        toast("🔄 Показал другой вариант");
         return;
       }
       const cardRate = e.target.closest("[data-card-rate]");
@@ -1229,6 +1247,7 @@
           const liked = cardRate.getAttribute("data-card-rate") === "like";
           Taste.rate(m, liked);
           if (window.Sync) Sync.sendRate(m, liked);
+          toast(liked ? "❤️ Запомню — подберём похожее" : "👎 Понял, меньше такого");
           const cardEl = cardRate.closest(".card");
           const featEl = cardRate.closest(".fhero");
           if (cardEl) {
@@ -1261,6 +1280,7 @@
             }
           });
           if ((location.hash || "").indexOf("#/my") === 0) renderMy();
+          toast(on ? "🔖 Добавлено в «Хочу посмотреть»" : "Убрано из списка");
         }
         return;
       }
