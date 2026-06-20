@@ -109,18 +109,31 @@
     const trend = val(trending);
     const free = Api.getFreeMovies();
 
+    const freshList = (val(fresh).length ? val(fresh) : free);
     let html = "";
     html += UI.hero2((trend.length ? trend : free).slice(0, 4));
     html += '<div class="container">';
     html += UI.tgBanner();
 
+    // Двухколоночный блок: сетка «Новинки» + сайдбар (как на hdrezka)
+    html += `<div class="home2">
+      <div class="home2__main">
+        <div class="section__head"><h2 class="section__title">🆕 Новинки</h2><a class="section__link" href="#/catalog?sort=release_date.desc">Все →</a></div>
+        ${UI.grid(freshList.slice(0, 24))}
+      </div>
+      <aside class="home2__aside">
+        ${UI.sidebarList("Сейчас смотрят", (trend.length ? trend : free).slice(0, 6), "🔥")}
+        ${UI.sidebarList("Топ рейтинга", (val(top).length ? val(top) : free).slice(0, 5), "⭐")}
+        ${window.Ads ? Ads.slot("home") : ""}
+      </aside>
+    </div>`;
+
+    // Блок подборок/коллекций
+    html += `<section class="section"><div class="section__head"><h2 class="section__title">🎬 Подборки</h2></div>${UI.collectionCards()}</section>`;
+
     const history = UI.getHistory();
     if (history.length) html += UI.row("Вы недавно смотрели", history.slice(0, 16), null, "🕑");
-    html += UI.row("В тренде на этой неделе", trend.slice(0, 18), "#/catalog", "🔥");
-    html += UI.row("Новинки", val(fresh).slice(0, 18), "#/catalog?sort=release_date.desc", "🆕");
     html += UI.row("Смотреть бесплатно", free.slice(0, 18), "#/free", "🆓");
-    if (window.Ads) html += Ads.slot("home");
-    html += UI.row("Топ рейтинга", val(top).slice(0, 18), "#/catalog?sort=vote_average.desc", "⭐");
     html += "</div>";
 
     appEl.innerHTML = html;
@@ -224,6 +237,24 @@
       <div class="load-more" id="load-more-wrap"></div></div>`;
   }
 
+  // Каталог с боковой панелью фильтров (как на hdrezka)
+  function catalogShell(title, subtitle, genre) {
+    return `<div class="container">
+      <div class="page-head"><h1>${UI.esc(title)}</h1>${subtitle ? `<p>${UI.esc(subtitle)}</p>` : ""}</div>
+      <div class="cat">
+        <aside class="cat__side">
+          <div class="cat__group"><h4>Фильтр</h4>${filterControls()}</div>
+          <div class="cat__group"><h4>Жанры</h4>${genreChips(genre)}</div>
+        </aside>
+        <div class="cat__main">
+          ${window.Ads ? Ads.slot("catalog") : ""}
+          <div id="list-grid">${UI.skeletonGrid()}</div>
+          <div class="load-more" id="load-more-wrap"></div>
+        </div>
+      </div>
+    </div>`;
+  }
+
   function renderListGrid() {
     const gridEl = document.getElementById("list-grid");
     const moreWrap = document.getElementById("load-more-wrap");
@@ -275,7 +306,7 @@
     const subtitle = Api.hasTmdb()
       ? "Тысячи фильмов из TMDB. Фильтруйте по жанру, году и рейтингу."
       : "Каталог public-domain фильмов. Подключите TMDB-ключ для большой базы.";
-    appEl.innerHTML = listShell(title, subtitle, genreChips(genre), filterControls());
+    appEl.innerHTML = catalogShell(title, subtitle, genre);
     if (window.Ads) Ads.activate();
     bindFilterControls();
     list = { fetch: (p) => Api.discover({ ...filters, page: p }), page: 1, totalPages: 1, items: [] };

@@ -191,6 +191,41 @@
       </div>`;
   }
 
+  // Тематические подборки (ведут в каталог с фильтром)
+  const COLLECTIONS = [
+    { key: "scifi", emoji: "🚀", title: "Космос и будущее", href: "#/catalog/genre/878" },
+    { key: "horror", emoji: "😱", title: "Хоррор-ночь", href: "#/catalog/genre/27" },
+    { key: "love", emoji: "❤️", title: "Про любовь", href: "#/catalog/genre/10749" },
+    { key: "mystery", emoji: "🕵️", title: "Загадки и детективы", href: "#/catalog/genre/9648" },
+    { key: "family", emoji: "👨‍👩‍👧", title: "Семейный вечер", href: "#/catalog/genre/10751" },
+    { key: "comedy", emoji: "😂", title: "Чтобы посмеяться", href: "#/catalog/genre/35" },
+    { key: "anime", emoji: "🎌", title: "Аниме", href: "#/catalog/genre/anime" },
+    { key: "toons", emoji: "🧸", title: "Мультфильмы", href: "#/catalog/genre/16" },
+  ];
+
+  function collectionCards() {
+    return `<div class="collections">${COLLECTIONS.map(
+      (c) => `<a class="coll" href="${c.href}"><span class="coll__e">${c.emoji}</span><span class="coll__t">${esc(c.title)}</span></a>`
+    ).join("")}</div>`;
+  }
+
+  // Компактный список для сайдбара (как «Сейчас смотрят» на hdrezka)
+  function sidebarList(title, movies, icon) {
+    if (!movies || !movies.length) return "";
+    const items = movies
+      .map((m, i) => `
+        <a class="sbitem" data-movie="${esc(m.id)}">
+          <span class="sbitem__n">${i + 1}</span>
+          <div class="sbitem__p">${m.poster ? `<img src="${esc(m.poster)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</div>
+          <div class="sbitem__b">
+            <span class="sbitem__t">${esc(m.title)}</span>
+            <span class="sbitem__m">${esc(m.year || "")}${m.rating ? ` · ★ ${esc(m.rating)}` : ""}</span>
+          </div>
+        </a>`)
+      .join("");
+    return `<div class="sbblock"><h3 class="sbblock__h">${icon ? esc(icon) + " " : ""}${esc(title)}</h3>${items}</div>`;
+  }
+
   function empty(message, emoji) {
     return `<div class="empty"><div class="empty__emoji">${emoji || "🍿"}</div><p>${esc(message)}</p></div>`;
   }
@@ -306,6 +341,7 @@
 
   window.UI = {
     card, grid, row, section, heroSlider, hero2, tgBanner, onboarding, empty,
+    collectionCards, sidebarList,
     skeletonHome, skeletonGrid, skeletonRow,
     detail, getHistory, addToHistory, esc,
     movie: (id) => reg.get(String(id)),
