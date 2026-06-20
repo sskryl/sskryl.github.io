@@ -8,6 +8,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>" />
   <link rel="preconnect" href="https://archive.org" />
   <link rel="preconnect" href="https://image.tmdb.org" />
+  <script>try{document.documentElement.setAttribute("data-theme",localStorage.getItem("cinema:theme")||"light");}catch(e){}</script>
   <link rel="stylesheet" href="assets/css/styles.css" />
 </head>
 <body>
@@ -22,10 +23,15 @@
       <nav class="nav" id="nav">
         <a href="#/" class="nav__link">Главная</a>
         <a href="#/catalog" class="nav__link">Каталог</a>
-        <a href="#/swipe" class="nav__link">🎬 Подбор</a>
-        <a href="#/foryou" class="nav__link">✨ Для вас</a>
-        <a href="#/my" class="nav__link">❤️ Моё</a>
-        <a href="#/taste" class="nav__link">🎛 Вкус</a>
+        <div class="nav__dd" id="nav-dd">
+          <button class="nav__link nav__ddbtn" data-dropdown aria-haspopup="true" aria-expanded="false">Подбор <span class="nav__caret">▾</span></button>
+          <div class="nav__menu">
+            <a href="#/taste" class="nav__menulink">🎛 Слайдеры вкуса</a>
+            <a href="#/swipe" class="nav__menulink">🎬 Тиндер</a>
+            <a href="#/foryou" class="nav__menulink">✨ Для вас</a>
+            <a href="#/my" class="nav__menulink">❤️ Моё</a>
+          </div>
+        </div>
         <a href="#/free" class="nav__link nav__link--accent">Бесплатно</a>
       </nav>
 
@@ -34,6 +40,8 @@
                placeholder="Поиск фильма…" autocomplete="off" aria-label="Поиск фильма" />
         <button type="submit" class="search__btn" aria-label="Найти">🔍</button>
       </form>
+
+      <button class="icon-btn theme-toggle" id="theme-toggle" aria-label="Сменить тему" title="Сменить тему">🌙</button>
 
       <div class="auth" id="auth"></div>
 

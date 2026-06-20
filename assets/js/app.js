@@ -37,6 +37,15 @@
     document.querySelectorAll(".nav__link").forEach((a) => {
       a.classList.toggle("is-active", a.getAttribute("href") === hash);
     });
+    const ddRoutes = ["#/swipe", "#/taste", "#/foryou", "#/my"];
+    const ddbtn = document.querySelector(".nav__ddbtn");
+    if (ddbtn) ddbtn.classList.toggle("is-active", ddRoutes.some((r) => hash.indexOf(r) === 0));
+  }
+
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    const btn = document.getElementById("theme-toggle");
+    if (btn) btn.textContent = t === "dark" ? "☀️" : "🌙";
   }
 
   function stopHero() {
@@ -641,6 +650,18 @@
 
   function initChrome() {
     if (window.Ads) Ads.init();
+
+    // Тема (светлая по умолчанию)
+    applyTheme(document.documentElement.getAttribute("data-theme") || "light");
+    const themeBtn = document.getElementById("theme-toggle");
+    if (themeBtn) {
+      themeBtn.addEventListener("click", () => {
+        const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        try { localStorage.setItem("cinema:theme", t); } catch (e) {}
+        applyTheme(t);
+      });
+    }
+
     if (CFG.siteName) {
       document.title = CFG.siteName + " — бесплатный онлайн кинотеатр";
       document.querySelectorAll("[data-site-name]").forEach((el) => (el.textContent = CFG.siteName));
@@ -668,13 +689,28 @@
       burger.setAttribute("aria-expanded", String(open));
     });
     nav.addEventListener("click", (e) => {
-      if (e.target.classList.contains("nav__link")) {
+      if (e.target.closest(".nav__ddbtn")) return; // клик по «Подбор ▾» — открыть подменю
+      if (e.target.closest(".nav__menulink") || e.target.classList.contains("nav__link")) {
         nav.classList.remove("is-open");
         searchForm.classList.remove("is-open");
+        const ddw = document.getElementById("nav-dd");
+        if (ddw) ddw.classList.remove("is-open");
       }
     });
 
     document.body.addEventListener("click", (e) => {
+      // Выпадающее меню «Подбор»
+      const ddWrap = document.getElementById("nav-dd");
+      const ddBtn = e.target.closest("[data-dropdown]");
+      if (ddBtn && ddWrap) {
+        const open = ddWrap.classList.toggle("is-open");
+        ddBtn.setAttribute("aria-expanded", String(open));
+        return;
+      }
+      if (ddWrap && ddWrap.classList.contains("is-open") && !e.target.closest("#nav-dd")) {
+        ddWrap.classList.remove("is-open");
+      }
+
       const rateBtn = e.target.closest("[data-rate]");
       if (rateBtn) {
         handleRate(rateBtn.getAttribute("data-rate"));

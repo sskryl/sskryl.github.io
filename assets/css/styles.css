@@ -1,7 +1,31 @@
 /* ============================================================================
-   Kinoflex — тёмная тема онлайн-кинотеатра
+   Kinoflex — онлайн-кинотеатр (светлая тема по умолчанию + тёмная)
    ========================================================================== */
+/* Светлая тема — основная (по умолчанию) */
 :root {
+  --bg: #f4f6fa;
+  --bg-2: #ffffff;
+  --bg-3: #eceef4;
+  --surface: #e3e7ef;
+  --border: #dce0ea;
+  --text: #14171f;
+  --text-dim: #515b73;
+  --text-mute: #8b93a5;
+  --accent: #ff5722;
+  --accent-2: #ff7a45;
+  --accent-tg: #2aabee;
+  --gold: #d99700;
+  --green: #2f9e4f;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 8px 24px rgba(20, 30, 60, 0.10);
+  --header-bg: rgba(255, 255, 255, 0.9);
+  --header-h: 64px;
+  --maxw: 1280px;
+}
+
+/* Тёмная тема — по переключателю */
+html[data-theme="dark"] {
   --bg: #0e0f13;
   --bg-2: #15171e;
   --bg-3: #1d2029;
@@ -10,16 +34,11 @@
   --text: #e8eaf0;
   --text-dim: #9aa0b0;
   --text-mute: #6b7280;
-  --accent: #ff5722;
   --accent-2: #ff8a5c;
-  --accent-tg: #2aabee;
   --gold: #f5c518;
   --green: #4caf50;
-  --radius: 12px;
-  --radius-sm: 8px;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-  --header-h: 64px;
-  --maxw: 1280px;
+  --header-bg: rgba(14, 15, 19, 0.92);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -47,7 +66,7 @@ button { font-family: inherit; cursor: pointer; }
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(14, 15, 19, 0.92);
+  background: var(--header-bg);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
 }
@@ -207,7 +226,7 @@ button { font-family: inherit; cursor: pointer; }
 /* ===================== ДЕТАЛЬ ФИЛЬМА ===================== */
 .player { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; }
 .player iframe { width: 100%; height: 100%; border: 0; }
-.player__placeholder { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; background: linear-gradient(135deg, var(--bg-3), #0a0b0e); }
+.player__placeholder { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; background: linear-gradient(135deg, var(--bg-3), var(--surface)); }
 .player__placeholder p { color: var(--text-dim); max-width: 460px; }
 
 .detail { padding: 24px 28px 30px; }
@@ -271,7 +290,13 @@ button { font-family: inherit; cursor: pointer; }
 .hero::after { content: none; }
 .hero__slide { position: absolute; inset: 0; background-size: cover; background-position: center 20%; opacity: 0; transition: opacity 0.8s ease; display: flex; align-items: flex-end; pointer-events: none; }
 .hero__slide.is-active { opacity: 1; pointer-events: auto; }
-.hero__slide::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, var(--bg) 2%, rgba(14,15,19,0.55) 45%, rgba(14,15,19,0.12) 100%); }
+.hero__slide::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, var(--bg) 0%, rgba(0,0,0,0) 62%), linear-gradient(90deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 58%); }
+/* Текст hero и подписи на постерах — всегда светлые (лежат поверх тёмных кадров) */
+.hero__title { color: #fff; }
+.hero__meta { color: rgba(255,255,255,0.82); }
+.hero__overview { color: rgba(255,255,255,0.88); }
+.hero__title, .hero__overview { text-shadow: 0 2px 12px rgba(0,0,0,0.55); }
+.card__genres { color: rgba(255,255,255,0.88); }
 .hero__body { position: relative; z-index: 2; width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 40px; }
 .hero__title { max-width: 620px; }
 .hero__overview { max-width: 600px; }
@@ -291,7 +316,8 @@ button { font-family: inherit; cursor: pointer; }
 .rowsec__track::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 .rowsec__track > .card { flex: 0 0 160px; width: 160px; scroll-snap-align: start; }
 .rowsec__track > .skel-card { flex: 0 0 160px; }
-.rowsec__arrow { position: absolute; top: 0; bottom: 14px; width: 46px; border: none; background: rgba(14,15,19,0.72); color: #fff; font-size: 26px; cursor: pointer; opacity: 0; transition: opacity 0.2s; z-index: 4; }
+.rowsec__arrow { position: absolute; top: 0; bottom: 14px; width: 46px; border: 1px solid var(--border); background: var(--bg-2); color: var(--text); font-size: 26px; cursor: pointer; opacity: 0; transition: opacity 0.2s, background 0.15s; z-index: 4; box-shadow: var(--shadow); }
+.rowsec__arrow:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
 .rowsec__wrap:hover .rowsec__arrow { opacity: 1; }
 .rowsec__arrow--left { left: 0; border-radius: 0 8px 8px 0; }
 .rowsec__arrow--right { right: 0; border-radius: 8px 0 0 8px; }
@@ -423,3 +449,24 @@ button { font-family: inherit; cursor: pointer; }
 .adslot--ph .adslot__ph small { font-size: 12px; opacity: 0.7; }
 .adslot--house img { max-width: 100%; border-radius: var(--radius-sm); }
 .adslot--adsense ins { display: block; min-height: 90px; }
+
+/* ---- Иконочная кнопка (тема) ---- */
+.icon-btn { background: var(--bg-3); border: 1px solid var(--border); color: var(--text); width: 38px; height: 38px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; transition: border-color 0.15s, background 0.15s; flex-shrink: 0; }
+.icon-btn:hover { border-color: var(--text-mute); }
+
+/* ---- Выпадающее меню «Подбор» ---- */
+.nav__dd { position: relative; }
+.nav__ddbtn { background: none; border: none; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+.nav__caret { font-size: 10px; transition: transform 0.2s; }
+.nav__dd.is-open .nav__caret { transform: rotate(180deg); }
+.nav__menu { position: absolute; top: calc(100% + 12px); left: 0; min-width: 220px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow); padding: 6px; display: none; flex-direction: column; z-index: 120; }
+.nav__dd.is-open .nav__menu { display: flex; }
+.nav__menulink { padding: 11px 12px; border-radius: 6px; font-size: 14px; color: var(--text); transition: 0.12s; }
+.nav__menulink:hover { background: var(--surface); color: var(--accent); }
+
+@media (max-width: 768px) {
+  .nav__menu { position: static; display: flex; box-shadow: none; border: none; background: transparent; padding: 2px 0 6px 14px; min-width: 0; }
+  .nav__caret { display: none; }
+  .theme-toggle { margin-left: auto; }
+  .burger { margin-left: 8px; }
+}
