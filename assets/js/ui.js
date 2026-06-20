@@ -175,7 +175,7 @@
       <section class="hero2">
         <div class="hero2__inner">
           <div class="hero2__text">
-            <span class="hero2__badge">⚡ первый читерский Нетфликс</span>
+            <span class="hero2__badge">🍷 персональный подбор кино</span>
             <h1 class="hero2__title">Твой личный <span class="hero2__accent">кино-сомелье</span></h1>
             <p class="hero2__sub">Подберём фильм точно под твой вкус: ИИ учится на твоих оценках и предлагает именно то, что зайдёт. Без бесконечного скролла.</p>
             <div class="hero2__moods">${moods}</div>
