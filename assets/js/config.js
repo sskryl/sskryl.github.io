@@ -33,8 +33,7 @@ window.CINEMA_CONFIG = {
 
   // Адрес развёрнутого веб-API (bot/web_api.py). Пусто = вход выключен,
   // сайт работает только на локальном профиле (localStorage).
-  // Пример: "https://kinoflex-api.vercel.app"
-  apiBaseUrl: "",
+  apiBaseUrl: "https://kinoflex-iota.vercel.app",
 
   // --- Реклама и баннеры ---
   // Сайт готов к монетизации. Включите ads.enabled и задайте либо AdSense,
