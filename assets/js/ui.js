@@ -176,13 +176,14 @@
         <div class="hero2__inner">
           <div class="hero2__text">
             <span class="hero2__badge">🍿 умный подбор кино</span>
-            <h1 class="hero2__title">Не знаешь, что посмотреть?</h1>
-            <p class="hero2__sub">Выбери настроение — и получи фильм за 10 секунд. Бесплатно и без регистрации.</p>
+            <h1 class="hero2__title">Не знаешь, <span class="hero2__accent">что посмотреть?</span></h1>
+            <p class="hero2__sub">Выбери настроение — и получи фильм за 10 секунд.</p>
             <div class="hero2__moods">${moods}</div>
             <div class="hero2__cta">
               <a class="btn btn--lg" href="#/match">🎯 Точный подбор</a>
               <a class="btn btn--ghost btn--lg" href="#/swipe">🎬 Листать фильмы</a>
             </div>
+            <div class="hero2__trust"><span>🎬 тысячи фильмов</span><span>🆓 бесплатно</span><span>⚡ без регистрации</span></div>
           </div>
           <div class="hero2__fan">${fan}</div>
         </div>
@@ -202,22 +203,36 @@
       </div>`;
   }
 
-  // Тематические подборки (ведут в каталог с фильтром)
+  // Тематические подборки — первоклассные сущности (свои страницы #/collection/:key)
   const COLLECTIONS = [
-    { key: "scifi", emoji: "🚀", title: "Космос и будущее", href: "#/catalog/genre/878" },
-    { key: "horror", emoji: "😱", title: "Хоррор-ночь", href: "#/catalog/genre/27" },
-    { key: "love", emoji: "❤️", title: "Про любовь", href: "#/catalog/genre/10749" },
-    { key: "mystery", emoji: "🕵️", title: "Загадки и детективы", href: "#/catalog/genre/9648" },
-    { key: "family", emoji: "👨‍👩‍👧", title: "Семейный вечер", href: "#/catalog/genre/10751" },
-    { key: "comedy", emoji: "😂", title: "Чтобы посмеяться", href: "#/catalog/genre/35" },
-    { key: "anime", emoji: "🎌", title: "Аниме", href: "#/catalog/genre/anime" },
-    { key: "toons", emoji: "🧸", title: "Мультфильмы", href: "#/catalog/genre/16" },
+    { key: "scifi", emoji: "🚀", title: "Космос и будущее", subtitle: "Фантастика, космос и иные миры", q: { genre: 878 } },
+    { key: "horror", emoji: "😱", title: "Хоррор-ночь", subtitle: "Ужасы, чтобы пощекотать нервы", q: { genre: 27 } },
+    { key: "love", emoji: "❤️", title: "Про любовь", subtitle: "Мелодрамы и романтика", q: { genre: 10749 } },
+    { key: "mystery", emoji: "🕵️", title: "Загадки и детективы", subtitle: "Триллеры и расследования", q: { genre: 9648 } },
+    { key: "family", emoji: "👨‍👩‍👧", title: "Семейный вечер", subtitle: "Для просмотра всей семьёй", q: { genre: 10751 } },
+    { key: "comedy", emoji: "😂", title: "Чтобы посмеяться", subtitle: "Комедии на вечер", q: { genre: 35 } },
+    { key: "anime", emoji: "🎌", title: "Аниме", subtitle: "Японская анимация", q: { genre: "anime" } },
+    { key: "toons", emoji: "🧸", title: "Мультфильмы", subtitle: "Анимация для всех возрастов", q: { genre: 16 } },
   ];
+  function collectionList() { return COLLECTIONS; }
+  function collection(key) { return COLLECTIONS.find(function (c) { return c.key === key; }); }
 
   function collectionCards() {
     return `<div class="collections">${COLLECTIONS.map(
-      (c) => `<a class="coll" href="${c.href}"><span class="coll__e">${c.emoji}</span><span class="coll__t">${esc(c.title)}</span></a>`
+      (c) => `<a class="coll coll--${c.key}" href="#/collection/${c.key}"><span class="coll__e">${c.emoji}</span><span class="coll__b"><span class="coll__t">${esc(c.title)}</span><span class="coll__s">${esc(c.subtitle || "")}</span></span></a>`
     ).join("")}</div>`;
+  }
+
+  // «Подбор как стержень» — лента сценариев подбора
+  function pickerBand() {
+    const items = [
+      { h: "#/match", e: "🎯", t: "Точный подбор", d: "свайпы + дуэли → кинопрофиль" },
+      { h: "#/taste", e: "🎛", t: "По настроению", d: "нужный фильм за 10 секунд" },
+      { h: "#/swipe", e: "🎬", t: "Тиндер", d: "листай и оценивай постеры" },
+    ];
+    return `<section class="pickers">${items.map(
+      (i) => `<a class="picker" href="${i.h}"><span class="picker__e">${i.e}</span><span class="picker__b"><span class="picker__t">${esc(i.t)}</span><span class="picker__d">${esc(i.d)}</span></span><span class="picker__go">→</span></a>`
+    ).join("")}</section>`;
   }
 
   // Компактный список для сайдбара (как «Сейчас смотрят» на hdrezka)
@@ -353,7 +368,7 @@
 
   window.UI = {
     card, grid, row, section, heroSlider, hero2, tgBanner, onboarding, empty,
-    collectionCards, sidebarList,
+    collectionCards, collectionList, collection, pickerBand, sidebarList,
     skeletonHome, skeletonGrid, skeletonRow,
     detail, getHistory, addToHistory, esc,
     movie: (id) => reg.get(String(id)),

@@ -36,7 +36,7 @@
     if (["#/match", "#/taste", "#/swipe", "#/quiz", "#/foryou"].some((r) => h.indexOf(r) === 0)) return "podbor";
     if (h.indexOf("#/my") === 0) return "my";
     if (h.indexOf("#/catalog") === 0 && h.indexOf("release_date") >= 0) return "new";
-    if (h.indexOf("#/catalog") === 0 || h.indexOf("#/free") === 0) return "catalog";
+    if (h.indexOf("#/catalog") === 0 || h.indexOf("#/free") === 0 || h.indexOf("#/cat/") === 0 || h.indexOf("#/collection/") === 0) return "catalog";
     if (h === "#/" || h === "") return "home";
     return "";
   }
@@ -114,41 +114,31 @@
     html += UI.hero2((trend.length ? trend : free).slice(0, 4));
     html += '<div class="container">';
     html += UI.tgBanner();
+    html += UI.pickerBand();
+    html += '<div id="home-foryou"></div>';
 
-    // Двухколоночный блок: сетка «Новинки» + сайдбар (как на hdrezka)
-    html += `<div class="home2">
-      <div class="home2__main">
-        <div class="section__head"><h2 class="section__title">🆕 Новинки</h2><a class="section__link" href="#/catalog?sort=release_date.desc">Все →</a></div>
-        ${UI.grid(freshList.slice(0, 24))}
-      </div>
-      <aside class="home2__aside">
-        ${UI.sidebarList("Сейчас смотрят", (trend.length ? trend : free).slice(0, 6), "🔥")}
-        ${UI.sidebarList("Топ рейтинга", (val(top).length ? val(top) : free).slice(0, 5), "⭐")}
-        ${window.Ads ? Ads.slot("home") : ""}
-      </aside>
-    </div>`;
+    // Подборки — быстрые ссылки на страницы коллекций
+    html += `<section class="section"><div class="section__head"><h2 class="section__title">🎬 Подборки</h2><a class="section__link" href="#/catalog">Весь каталог →</a></div>${UI.collectionCards()}</section>`;
 
-    // Блок подборок/коллекций
-    html += `<section class="section"><div class="section__head"><h2 class="section__title">🎬 Подборки</h2></div>${UI.collectionCards()}</section>`;
-
+    html += UI.row("Новинки", freshList.slice(0, 18), "#/catalog?sort=release_date.desc", "🆕");
+    html += UI.row("В тренде", trend.slice(0, 18), "#/cat/movies", "🔥");
     const history = UI.getHistory();
     if (history.length) html += UI.row("Вы недавно смотрели", history.slice(0, 16), null, "🕑");
+    html += '<div id="home-coll"></div>';
+    if (window.Ads) html += Ads.slot("home");
     html += UI.row("Смотреть бесплатно", free.slice(0, 18), "#/free", "🆓");
     html += "</div>";
 
     appEl.innerHTML = html;
     if (window.Ads) Ads.activate();
 
-    // Жанровые ряды догружаем после основной отрисовки
-    const container = appEl.querySelector(".container");
-    for (const gid of [27, 16, 878]) {
+    // Тематические ряды-коллекции догружаем после основной отрисовки
+    const collBox = document.getElementById("home-coll");
+    for (const c of UI.collectionList().slice(0, 4)) {
       try {
-        const g = await Api.getByGenre(gid, 1);
-        if (g.results.length) {
-          container.insertAdjacentHTML(
-            "beforeend",
-            UI.row(Api.genreName(gid), g.results.slice(0, 18), "#/catalog/genre/" + gid)
-          );
+        const g = await Api.discover({ ...c.q, sort: "popularity.desc", page: 1 });
+        if (g.results.length && collBox) {
+          collBox.insertAdjacentHTML("beforeend", UI.row(c.emoji + " " + c.title, g.results.slice(0, 18), "#/collection/" + c.key));
         }
       } catch (e) {}
     }
@@ -157,17 +147,66 @@
     if (Taste.hasProfile()) {
       try {
         const pool = await buildSwipePool();
-        if (pool.length) {
-          const tg = container.querySelector(".tg-banner");
-          const rowHtml = UI.row("Для вас", pool.slice(0, 18), "#/foryou", "✨");
-          if (tg) tg.insertAdjacentHTML("afterend", rowHtml);
-          else container.insertAdjacentHTML("afterbegin", rowHtml);
-        }
+        const fy = document.getElementById("home-foryou");
+        if (pool.length && fy) fy.innerHTML = UI.row("Для вас", pool.slice(0, 18), "#/foryou", "✨");
       } catch (e) {}
     }
 
     document.getElementById("year").textContent = new Date().getFullYear();
-    startHero();
+    scrollTop();
+  }
+
+  // ----- Страница коллекции --------------------------------------------------
+  function renderCollection(key) {
+    stopHero();
+    const c = UI.collection(key);
+    if (!c) { appEl.innerHTML = `<div class="container">${UI.empty("Подборка не найдена")}</div>`; scrollTop(); return; }
+    appEl.innerHTML = `
+      <div class="collhero collhero--${c.key}">
+        <div class="container collhero__in">
+          <span class="collhero__e">${c.emoji}</span>
+          <div><h1 class="collhero__t">${UI.esc(c.title)}</h1><p class="collhero__s">${UI.esc(c.subtitle || "")}</p></div>
+        </div>
+      </div>
+      <div class="container">
+        ${window.Ads ? Ads.slot("catalog") : ""}
+        <div id="list-grid">${UI.skeletonGrid()}</div>
+        <div class="load-more" id="load-more-wrap"></div>
+      </div>`;
+    if (window.Ads) Ads.activate();
+    list = { fetch: (p) => Api.discover({ ...c.q, sort: "popularity.desc", page: p }), page: 1, totalPages: 1, items: [] };
+    loadListPage();
+    scrollTop();
+  }
+
+  // ----- Лендинг категории (витрина с рядами) --------------------------------
+  const CATS = {
+    movies: { title: "Фильмы", emoji: "🎬", genre: null, catalog: "#/catalog" },
+    toons: { title: "Мультфильмы", emoji: "🧸", genre: 16, catalog: "#/catalog/genre/16" },
+    anime: { title: "Аниме", emoji: "🎌", genre: "anime", catalog: "#/catalog/genre/anime" },
+  };
+  async function renderCategory(key) {
+    stopHero();
+    const cat = CATS[key];
+    if (!cat) return renderCatalog(null, {});
+    const sep = cat.catalog.indexOf("?") >= 0 ? "&" : "?";
+    let html = `<div class="collhero collhero--cat"><div class="container collhero__in"><span class="collhero__e">${cat.emoji}</span><div><h1 class="collhero__t">${cat.title}</h1><p class="collhero__s">Популярное, новинки и топ рейтинга в одном месте</p></div></div></div>`;
+    html += `<div class="container"><div id="catland">${UI.skeletonRow()}</div>`;
+    html += `<div class="load-more"><a class="btn btn--lg" href="${cat.catalog}">Открыть весь каталог с фильтрами →</a></div></div>`;
+    appEl.innerHTML = html;
+    const box = document.getElementById("catland");
+    if (box) box.innerHTML = "";
+    const rows = [
+      { t: "🔥 Популярное", sort: "popularity.desc", link: cat.catalog },
+      { t: "🆕 Новинки", sort: "release_date.desc", link: cat.catalog + sep + "sort=release_date.desc" },
+      { t: "⭐ Топ рейтинга", sort: "vote_average.desc", link: cat.catalog + sep + "sort=vote_average.desc" },
+    ];
+    for (const r of rows) {
+      try {
+        const g = await Api.discover({ genre: cat.genre, sort: r.sort, page: 1 });
+        if (g.results.length && box) box.insertAdjacentHTML("beforeend", UI.row(r.t, g.results.slice(0, 18), r.link));
+      } catch (e) {}
+    }
     scrollTop();
   }
 
@@ -822,6 +861,8 @@
     const query = parseQuery(hash);
     const parts = path.replace(/^#\//, "").split("/").filter(Boolean);
     if (parts.length === 0) return renderHome();
+    if (parts[0] === "collection") return renderCollection(parts[1]);
+    if (parts[0] === "cat") return renderCategory(parts[1]);
     if (parts[0] === "catalog" && parts[1] === "genre") return renderCatalog(parts[2], query);
     if (parts[0] === "catalog") return renderCatalog(null, query);
     if (parts[0] === "match") return renderMatch();

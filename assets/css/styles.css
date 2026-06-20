@@ -693,3 +693,44 @@ button { font-family: inherit; cursor: pointer; }
 .logo__col { gap: 4px; }
 .logo--footer .logo__text { font-size: 24px; }
 @media (max-width: 768px) { .logo__text { font-size: 20px; } }
+
+/* ============================================================================
+   v2 структура: полировка hero, стержень-подбор, коллекции, лендинги
+   ========================================================================== */
+/* --- Hero polish --- */
+.hero2 { margin: 20px 0 14px; }
+.hero2__inner { padding: 48px 44px; }
+.hero2__title { font-size: 44px; font-weight: 800; letter-spacing: -1px; }
+.hero2__accent { background: linear-gradient(90deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.hero2__sub { font-size: 18px; }
+.hero2__trust { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 18px; color: var(--text-mute); font-size: 13px; font-weight: 600; }
+.hero2__trust span { white-space: nowrap; }
+
+/* --- Подбор как стержень --- */
+.pickers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 22px 0; }
+.picker { display: flex; align-items: center; gap: 14px; padding: 18px 20px; border-radius: var(--radius);
+  background: var(--bg-2); border: 1px solid var(--border); transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s; }
+.picker:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: var(--shadow); }
+.picker__e { font-size: 30px; flex-shrink: 0; }
+.picker__b { display: flex; flex-direction: column; min-width: 0; }
+.picker__t { font-weight: 700; font-size: 16px; }
+.picker__d { font-size: 13px; color: var(--text-mute); }
+.picker__go { margin-left: auto; color: var(--accent); font-size: 22px; font-weight: 700; }
+@media (max-width: 760px) { .pickers { grid-template-columns: 1fr; gap: 10px; } .picker { padding: 14px 16px; } }
+
+/* --- Карточки коллекций (с подзаголовком) --- */
+.coll { align-items: center; gap: 12px; }
+.coll__b { display: flex; flex-direction: column; min-width: 0; }
+.coll__t { font-weight: 700; }
+.coll__s { font-size: 12px; color: var(--text-mute); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* --- Шапка коллекции / категории --- */
+.collhero { position: relative; overflow: hidden; margin-bottom: 8px;
+  background: radial-gradient(120% 160% at 0% 0%, rgba(255,87,34,0.20), transparent 55%),
+              radial-gradient(120% 160% at 100% 100%, rgba(42,171,238,0.16), transparent 55%), var(--bg-2);
+  border-bottom: 1px solid var(--border); }
+.collhero__in { display: flex; align-items: center; gap: 18px; padding: 34px 20px; }
+.collhero__e { font-size: 52px; line-height: 1; }
+.collhero__t { font-size: 30px; margin: 0; }
+.collhero__s { color: var(--text-dim); margin: 4px 0 0; }
+@media (max-width: 600px) { .collhero__e { font-size: 40px; } .collhero__t { font-size: 24px; } }
