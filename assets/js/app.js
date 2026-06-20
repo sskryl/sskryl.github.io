@@ -138,12 +138,23 @@
     const freshList = (val(fresh).length ? val(fresh) : free);
     // Пул для «живого» hero — перемешиваем тренды/топ/новинки и крутим веер
     const heroPool = shuffle(dedupeById(trend.concat(val(top), freshList)).filter((m) => m.poster));
+    const homeSearch = `
+      <section class="homesearch">
+        <form class="homesearch__form" id="home-search" role="search">
+          <span class="homesearch__icon">🔍</span>
+          <input class="homesearch__input" id="home-search-input" type="search" placeholder="Какой фильм найти? Введите название…" autocomplete="off" aria-label="Поиск фильма" />
+          <button class="homesearch__btn" type="submit">Найти</button>
+        </form>
+      </section>`;
+
     let html = "";
+    // 1) Новинки  2) Поиск  3) Hero
+    html += '<div class="container home-top">';
+    html += UI.row("Новинки", freshList.slice(0, 18), "#/cat/new", "🆕");
+    html += homeSearch;
+    html += "</div>";
     html += UI.hero2((heroPool.length ? heroPool : free).slice(0, 4));
     html += '<div class="container">';
-
-    // Новинки — самый верх
-    html += UI.row("Новинки", freshList.slice(0, 18), "#/cat/new", "🆕");
 
     html += UI.pickerBand();
     html += '<div id="home-foryou"></div>';
@@ -1116,6 +1127,16 @@
         document.getElementById("nav").classList.remove("is-open");
         searchForm.classList.remove("is-open");
       }
+    });
+
+    // Крупный поиск на главной (делегированно — блок перерисовывается)
+    document.body.addEventListener("submit", (e) => {
+      const hf = e.target.closest("#home-search");
+      if (!hf) return;
+      e.preventDefault();
+      const inp = hf.querySelector("input");
+      const q = (inp && inp.value || "").trim();
+      if (q) location.hash = "#/search/" + encodeURIComponent(q);
     });
 
     const burger = document.getElementById("burger");
