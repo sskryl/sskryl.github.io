@@ -914,3 +914,22 @@ button { font-family: inherit; cursor: pointer; }
 .funnel__alt a { color: var(--text-dim); font-weight: 600; }
 .funnel__alt a:hover { color: var(--accent); }
 @media (max-width: 600px) { .funnel { padding: 18px; } .funnel__title { font-size: 20px; } .funnel__deck .card { flex-basis: 130px; width: 130px; } }
+
+/* ============================================================================
+   Онбординг новичка (настроение → свайпы → готово)
+   ========================================================================== */
+.onb2 { max-width: 680px; margin: 0 auto; text-align: center; padding: 18px 0 44px; }
+.onb2__steps { display: flex; gap: 8px; justify-content: center; margin: 8px 0 22px; }
+.onb2__dot { width: 30px; height: 5px; border-radius: 999px; background: var(--bg-3); transition: background 0.2s; }
+.onb2__dot.is-on { background: var(--accent); }
+.onb2__emoji { font-size: 54px; }
+.onb2__title { font-size: 28px; margin: 8px 0 8px; }
+.onb2__sub { color: var(--text-dim); font-size: 16px; margin-bottom: 18px; }
+.onb2__moods { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 26px; }
+.onb2__mood { background: var(--bg-2); border: 1px solid var(--border); color: var(--text); padding: 10px 16px; border-radius: 999px; font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.15s; }
+.onb2__mood:hover { border-color: var(--accent); transform: translateY(-2px); }
+.onb2__mood.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.onb2__cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.onb2__progress { height: 8px; background: var(--bg-3); border-radius: 999px; overflow: hidden; max-width: 420px; margin: 6px auto 8px; }
+.onb2__bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.3s ease; }
+.onb2__hint { color: var(--text-dim); font-size: 14px; margin-bottom: 14px; }

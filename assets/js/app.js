@@ -164,6 +164,141 @@
     if (cnt) cnt.textContent = "оценено " + total + " из " + FUNNEL_GOAL;
   }
 
+  // =====================================================================
+  //  ОНБОРДИНГ новичка: настроение → пара свайпов → готово
+  // =====================================================================
+  const ONB_GOAL = 5;
+  let onbState = null;
+  function shouldOnboard() {
+    try { if (localStorage.getItem("cinema:onboarded")) return false; } catch (e) {}
+    return !Taste.hasProfile();
+  }
+  function finishOnboard() {
+    try { localStorage.setItem("cinema:onboarded", "1"); } catch (e) {}
+  }
+  function onbShell(inner) {
+    appEl.innerHTML = `<div class="container onb2">${inner}</div>`;
+    scrollTop();
+  }
+  function onbStepBar(n) {
+    return `<div class="onb2__steps">${[1, 2, 3].map((i) => `<span class="onb2__dot ${i <= n ? "is-on" : ""}"></span>`).join("")}</div>`;
+  }
+
+  function renderOnboarding() {
+    stopHero();
+    if (!onbState) onbState = { step: "mood", moods: new Set(), pool: [], rated: 0 };
+    if (onbState.step === "swipe") return onbSwipe();
+    if (onbState.step === "done") return onbDone();
+    return onbMood();
+  }
+
+  function onbMood() {
+    onbState.step = "mood";
+    const moods = [
+      { e: "😂", t: "Посмеяться", g: 35 }, { e: "😱", t: "Пощекотать нервы", g: 27 },
+      { e: "❤️", t: "О любви", g: 10749 }, { e: "🕵️", t: "Подумать", g: 9648 },
+      { e: "🚀", t: "В другой мир", g: 878 }, { e: "💥", t: "Экшен", g: 28 },
+      { e: "🎭", t: "Драма", g: 18 }, { e: "👨‍👩‍👧", t: "Семейное", g: 10751 },
+    ];
+    const chips = moods
+      .map((m) => `<button class="onb2__mood ${onbState.moods.has(m.g) ? "is-on" : ""}" data-onb-mood="${m.g}">${m.e} ${UI.esc(m.t)}</button>`)
+      .join("");
+    onbShell(`
+      ${onbStepBar(1)}
+      <div class="onb2__emoji">🍷</div>
+      <h1 class="onb2__title">Что хочется посмотреть?</h1>
+      <p class="onb2__sub">Выбери одно-два настроения — с этого начнём подбор.</p>
+      <div class="onb2__moods">${chips}</div>
+      <div class="onb2__cta">
+        <button class="btn btn--lg" data-onb="toSwipe">Дальше →</button>
+        <button class="btn btn--ghost" data-onb="skip">Пропустить</button>
+      </div>`);
+  }
+
+  async function onbBuildPool() {
+    const genres = Array.from(onbState.moods);
+    let pool = [];
+    try {
+      if (genres.length) {
+        for (const g of genres.slice(0, 3)) {
+          const d = await Api.discover({ genre: g, sort: "popularity.desc", page: 1 });
+          pool = pool.concat(d.results);
+        }
+      } else {
+        pool = (await Api.getTrending(1)).results;
+      }
+    } catch (e) {}
+    const rated = Taste.getRatings ? Taste.getRatings() : {};
+    const seen = new Set();
+    const out = [];
+    for (const m of pool) {
+      const id = String(m.id);
+      if (!seen.has(id) && !rated[id] && m.poster) { seen.add(id); out.push(m); }
+    }
+    await Api.enrichMany(out, 16);
+    onbState.pool = shuffle(out);
+  }
+
+  async function onbStart() {
+    onbState.step = "swipe";
+    onbShell(`<div class="loader"><div class="spinner"></div></div>`);
+    await onbBuildPool();
+    if (!onbState.pool.length) { onbDone(); return; }
+    onbSwipe();
+  }
+
+  function onbSwipe() {
+    onbState.step = "swipe";
+    if (!onbState.pool.length) { onbDone(); return; }
+    const m = onbState.pool[0];
+    const genres = Api.genreNames(m.genres, 3).join(" • ");
+    onbShell(`
+      ${onbStepBar(2)}
+      <div class="onb2__progress"><div class="onb2__bar" style="width:${Math.min(100, (onbState.rated / ONB_GOAL) * 100)}%"></div></div>
+      <p class="onb2__hint">Оцени фильмы (${onbState.rated}/${ONB_GOAL})</p>
+      <div class="swipe">
+        <div class="swipe__card">
+          <div class="swipe__poster ${m.poster ? "" : "card__poster--empty"}" style="${m.poster ? `background-image:url('${UI.esc(m.poster)}')` : ""}">${m.poster ? "" : UI.esc(m.title)}${m.rating ? `<span class="card__rating">★ ${UI.esc(m.rating)}</span>` : ""}</div>
+          <div class="swipe__info"><h2 class="swipe__title">${UI.esc(m.title)} ${m.year ? `<span class="swipe__year">${UI.esc(m.year)}</span>` : ""}</h2><p class="swipe__genres">${UI.esc(genres)}</p></div>
+        </div>
+        <div class="swipe__actions">
+          <button class="swipe__btn swipe__btn--no" data-onb-rate="dislike" aria-label="Не нравится">👎</button>
+          <button class="swipe__btn swipe__btn--skip" data-onb-skip aria-label="Пропустить">⏭</button>
+          <button class="swipe__btn swipe__btn--yes" data-onb-rate="like" aria-label="Нравится">❤️</button>
+        </div>
+      </div>`);
+  }
+
+  async function onbDoRate(action) {
+    const m = onbState.pool.shift();
+    if (m) {
+      Taste.rate(m, action === "like");
+      if (window.Sync) Sync.sendRate(m, action === "like");
+      onbState.rated++;
+    }
+    onbState.pool = Taste.rank(onbState.pool);
+    if (onbState.rated >= ONB_GOAL) { onbDone(); return; }
+    if (!onbState.pool.length) { await onbBuildPool(); }
+    onbSwipe();
+  }
+  function onbSkipCard() {
+    onbState.pool.shift();
+    onbSwipe();
+  }
+
+  function onbDone() {
+    onbState.step = "done";
+    finishOnboard();
+    const tg = Taste.topGenres(3).map((g) => Api.genreName(g)).filter(Boolean);
+    onbShell(`
+      ${onbStepBar(3)}
+      <div class="onb2__emoji">✨</div>
+      <h1 class="onb2__title">Готово! Я понял твой вкус</h1>
+      ${tg.length ? `<p class="onb2__sub">Тебе заходит: <b>${UI.esc(tg.join(", "))}</b></p>` : ""}
+      <p class="onb2__sub">Собрал персональную подборку — приятного просмотра!</p>
+      <div class="onb2__cta"><button class="btn btn--lg" data-onb="finish">✨ Смотреть мою подборку</button></div>`);
+  }
+
   async function renderHome() {
     stopHero();
     appEl.innerHTML = UI.skeletonHome();
@@ -1101,7 +1236,8 @@
     const path = hash.split("?")[0];
     const query = parseQuery(hash);
     const parts = path.replace(/^#\//, "").split("/").filter(Boolean);
-    if (parts.length === 0) return renderHome();
+    if (parts.length === 0) return shouldOnboard() ? renderOnboarding() : renderHome();
+    if (parts[0] === "start") { onbState = null; return renderOnboarding(); }
     if (parts[0] === "collection") return renderCollection(parts[1]);
     if (parts[0] === "cat") return renderCategory(parts[1]);
     if (parts[0] === "catalog" && parts[1] === "genre") return renderCatalog(parts[2], query);
@@ -1238,6 +1374,30 @@
       const md = e.target.closest("[data-mduel]");
       if (md) { mPick(md.getAttribute("data-mduel")); return; }
 
+      // Онбординг
+      const onbMoodBtn = e.target.closest("[data-onb-mood]");
+      if (onbMoodBtn && onbState) {
+        const g = +onbMoodBtn.getAttribute("data-onb-mood");
+        if (onbState.moods.has(g)) onbState.moods.delete(g);
+        else onbState.moods.add(g);
+        onbMoodBtn.classList.toggle("is-on");
+        return;
+      }
+      const onbBtn = e.target.closest("[data-onb]");
+      if (onbBtn) {
+        const a = onbBtn.getAttribute("data-onb");
+        if (a === "toSwipe") onbStart();
+        else if (a === "skip" || a === "finish") {
+          finishOnboard();
+          if (location.hash === "#/" || location.hash === "") renderHome();
+          else location.hash = "#/";
+        }
+        return;
+      }
+      const onbR = e.target.closest("[data-onb-rate]");
+      if (onbR) { onbDoRate(onbR.getAttribute("data-onb-rate")); return; }
+      if (e.target.closest("[data-onb-skip]")) { onbSkipCard(); return; }
+
       const rateBtn = e.target.closest("[data-rate]");
       if (rateBtn) {
         handleRate(rateBtn.getAttribute("data-rate"));
@@ -1255,6 +1415,8 @@
       if (e.target.closest("[data-reset]")) {
         if (window.confirm("Сбросить ваш профиль (оценки и психотип)?")) {
           Taste.reset();
+          try { localStorage.removeItem("cinema:onboarded"); } catch (e) {}
+          onbState = null;
           router();
           toast("Профиль сброшен");
         }
