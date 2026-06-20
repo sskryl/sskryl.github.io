@@ -83,12 +83,6 @@
         </div>
       </nav>
 
-      <form class="search" id="search" role="search">
-        <input type="search" class="search__input" id="search-input"
-               placeholder="Поиск фильма…" autocomplete="off" aria-label="Поиск фильма" />
-        <button type="submit" class="search__btn" aria-label="Найти">🔍</button>
-      </form>
-
       <button class="icon-btn theme-toggle" id="theme-toggle" aria-label="Сменить тему" title="Сменить тему">🌙</button>
 
       <div class="auth" id="auth"></div>
@@ -98,6 +92,17 @@
       </button>
     </div>
   </header>
+
+  <!-- ===================== ГЛОБАЛЬНЫЙ ПОИСК (все страницы) ===================== -->
+  <div class="topsearch">
+    <div class="container">
+      <form class="topsearch__form" id="top-search" data-search role="search">
+        <span class="topsearch__icon">🔍</span>
+        <input class="topsearch__input" type="search" placeholder="Поиск фильма по названию…" autocomplete="off" aria-label="Поиск фильма" />
+        <button class="topsearch__btn" type="submit">Найти</button>
+      </form>
+    </div>
+  </div>
 
   <!-- ===================== ОСНОВНОЙ КОНТЕНТ ===================== -->
   <main id="app">

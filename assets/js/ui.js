@@ -156,12 +156,8 @@
       </section>`;
   }
 
-  // Продуктовый hero: посыл + выбор по настроению + «веер» постеров
-  function hero2(featured) {
-    const posters = (featured || []).filter((m) => m.poster).slice(0, 4);
-    const fan = posters
-      .map((m, i) => `<img class="hero2__poster" style="--i:${i}" src="${esc(m.poster)}" alt="" loading="lazy" onerror="this.remove()">`)
-      .join("");
+  // Продуктовый hero, объединённый с разделом «Новинки»
+  function hero2(novinki) {
     const moods = [
       { e: "😂", t: "Посмеяться", h: "#/catalog/genre/35" },
       { e: "😱", t: "Испугаться", h: "#/catalog/genre/27" },
@@ -171,6 +167,8 @@
     ]
       .map((m) => `<a class="mood" href="${m.h}">${m.e} ${esc(m.t)}</a>`)
       .join("");
+    const items = (novinki || []).filter((m) => m.poster).slice(0, 12);
+    const strip = items.map(card).join("");
     return `
       <section class="hero2">
         <div class="hero2__inner">
@@ -185,7 +183,10 @@
             </div>
             <div class="hero2__trust"><span>🧠 учится на твоём вкусе</span><span>🆓 бесплатно</span><span>⚡ без регистрации</span></div>
           </div>
-          <div class="hero2__fan">${fan}</div>
+          <div class="hero2__new">
+            <div class="hero2__new-head"><span>🆕 Новинки</span><a href="#/catalog?sort=release_date.desc">Все →</a></div>
+            <div class="hero2__new-strip">${strip}</div>
+          </div>
         </div>
       </section>`;
   }

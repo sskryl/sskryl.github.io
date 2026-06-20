@@ -789,3 +789,36 @@ button { font-family: inherit; cursor: pointer; }
 }
 .homesearch__btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(255,87,34,0.35); }
 @media (max-width: 600px) { .homesearch__btn { padding: 11px 16px; } .homesearch__input { font-size: 15px; } }
+
+/* ============================================================================
+   Глобальная строка поиска (все страницы, под шапкой)
+   ========================================================================== */
+.topsearch { background: var(--bg-2); border-bottom: 1px solid var(--border); padding: 12px 0; }
+.topsearch__form {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-3); border: 2px solid var(--border); border-radius: 999px;
+  padding: 4px 4px 4px 16px; transition: border-color 0.15s;
+}
+.topsearch__form:focus-within { border-color: var(--accent); }
+.topsearch__icon { font-size: 17px; color: var(--text-mute); }
+.topsearch__input { flex: 1; min-width: 0; border: none; background: transparent; outline: none; color: var(--text); font-size: 15px; padding: 9px 4px; }
+.topsearch__input::placeholder { color: var(--text-mute); }
+.topsearch__btn {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #fff; border: none;
+  border-radius: 999px; padding: 10px 22px; font-weight: 700; font-size: 14px; white-space: nowrap; transition: box-shadow 0.15s;
+}
+.topsearch__btn:hover { box-shadow: 0 6px 18px rgba(255,87,34,0.3); }
+@media (max-width: 600px) { .topsearch__btn { padding: 9px 16px; } }
+
+/* ============================================================================
+   «Новинки» внутри hero (объединённый блок)
+   ========================================================================== */
+.hero2__new { display: flex; flex-direction: column; min-width: 0; }
+.hero2__new-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+.hero2__new-head span { font-weight: 700; font-size: 16px; }
+.hero2__new-head a { color: var(--text-dim); font-size: 14px; }
+.hero2__new-head a:hover { color: var(--accent); }
+.hero2__new-strip { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity; }
+.hero2__new-strip .card { flex: 0 0 132px; width: 132px; scroll-snap-align: start; }
+.hero2__new-strip::-webkit-scrollbar { height: 6px; }
+.hero2__new-strip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
