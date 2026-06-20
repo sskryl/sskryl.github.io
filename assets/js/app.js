@@ -32,14 +32,29 @@
     window.scrollTo({ top: 0, behavior: "auto" });
   }
 
+  function routeKey(h) {
+    if (["#/taste", "#/swipe", "#/quiz", "#/foryou"].some((r) => h.indexOf(r) === 0)) return "podbor";
+    if (h.indexOf("#/my") === 0) return "my";
+    if (h.indexOf("#/catalog") === 0 && h.indexOf("release_date") >= 0) return "new";
+    if (h.indexOf("#/catalog") === 0 || h.indexOf("#/free") === 0) return "catalog";
+    if (h === "#/" || h === "") return "home";
+    return "";
+  }
+
   function highlightNav() {
     const hash = location.hash || "#/";
+    const key = routeKey(hash);
     document.querySelectorAll(".nav__link").forEach((a) => {
       a.classList.toggle("is-active", a.getAttribute("href") === hash);
     });
-    const ddRoutes = ["#/swipe", "#/taste", "#/foryou", "#/my"];
-    const ddbtn = document.querySelector(".nav__ddbtn");
-    if (ddbtn) ddbtn.classList.toggle("is-active", ddRoutes.some((r) => hash.indexOf(r) === 0));
+    // подсветка дропдаун-кнопок и нижнего таббара по разделу
+    document.querySelectorAll(".nav__ddbtn[data-ddkey]").forEach((b) => {
+      const k = b.getAttribute("data-ddkey");
+      b.classList.toggle("is-active", k === key || (k === "catalog" && key === "new"));
+    });
+    document.querySelectorAll(".bottomnav a[data-bn]").forEach((a) => {
+      a.classList.toggle("is-active", a.getAttribute("data-bn") === key);
+    });
   }
 
   function applyTheme(t) {
@@ -689,26 +704,31 @@
       burger.setAttribute("aria-expanded", String(open));
     });
     nav.addEventListener("click", (e) => {
-      if (e.target.closest(".nav__ddbtn")) return; // клик по «Подбор ▾» — открыть подменю
-      if (e.target.closest(".nav__menulink") || e.target.classList.contains("nav__link")) {
+      if (e.target.closest(".nav__ddbtn")) return; // клик по кнопке меню — открыть подменю
+      if (e.target.closest(".nav__menulink") || e.target.closest(".nav__usp") || e.target.classList.contains("nav__link")) {
         nav.classList.remove("is-open");
         searchForm.classList.remove("is-open");
-        const ddw = document.getElementById("nav-dd");
-        if (ddw) ddw.classList.remove("is-open");
+        document.querySelectorAll(".nav__dd.is-open").forEach((x) => x.classList.remove("is-open"));
       }
     });
 
     document.body.addEventListener("click", (e) => {
-      // Выпадающее меню «Подбор»
-      const ddWrap = document.getElementById("nav-dd");
+      // Выпадающие меню в навигации (Каталог / Подобрать)
       const ddBtn = e.target.closest("[data-dropdown]");
-      if (ddBtn && ddWrap) {
-        const open = ddWrap.classList.toggle("is-open");
-        ddBtn.setAttribute("aria-expanded", String(open));
+      if (ddBtn) {
+        const dd = ddBtn.closest(".nav__dd");
+        const wasOpen = dd.classList.contains("is-open");
+        document.querySelectorAll(".nav__dd.is-open").forEach((x) => x.classList.remove("is-open"));
+        if (!wasOpen) {
+          dd.classList.add("is-open");
+          ddBtn.setAttribute("aria-expanded", "true");
+        } else {
+          ddBtn.setAttribute("aria-expanded", "false");
+        }
         return;
       }
-      if (ddWrap && ddWrap.classList.contains("is-open") && !e.target.closest("#nav-dd")) {
-        ddWrap.classList.remove("is-open");
+      if (!e.target.closest(".nav__dd")) {
+        document.querySelectorAll(".nav__dd.is-open").forEach((x) => x.classList.remove("is-open"));
       }
 
       const rateBtn = e.target.closest("[data-rate]");
