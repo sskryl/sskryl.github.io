@@ -665,3 +665,24 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--text-dim); font-size: 13px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
 }
 .detail__rbtn--watch.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ============================================================================
+   Логотип в стиле Minecraft: пиксельный шрифт + 3D-выдавливание
+   ========================================================================== */
+.logo__text {
+  font-family: "Press Start 2P", "Courier New", monospace;
+  text-transform: uppercase;
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: #ff7a45;
+  text-shadow:
+    2px 2px 0 #7a2e12,
+    3px 3px 0 #4a1c0a,
+    4px 4px 5px rgba(0, 0, 0, 0.45);
+  line-height: 1.15;
+  -webkit-font-smoothing: none;
+}
+.logo__mark { font-size: 22px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.35)); }
+.logo__col { gap: 5px; }
+.logo--footer .logo__text { font-size: 16px; }
+@media (max-width: 768px) { .logo__text { font-size: 11px; } }
