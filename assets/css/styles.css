@@ -670,19 +670,26 @@ button { font-family: inherit; cursor: pointer; }
    Логотип в стиле Minecraft: пиксельный шрифт + 3D-выдавливание
    ========================================================================== */
 .logo__text {
-  font-family: "Press Start 2P", "Courier New", monospace;
+  font-family: "Pixelify Sans", "Press Start 2P", monospace;
   text-transform: uppercase;
-  font-size: 14px;
+  font-size: 26px;
+  font-weight: 700;
   letter-spacing: 1px;
   color: #ff7a45;
   text-shadow:
     2px 2px 0 #7a2e12,
-    3px 3px 0 #4a1c0a,
-    4px 4px 5px rgba(0, 0, 0, 0.45);
-  line-height: 1.15;
+    4px 4px 0 #4a1c0a,
+    5px 5px 6px rgba(0, 0, 0, 0.4);
+  line-height: 1;
   -webkit-font-smoothing: none;
 }
-.logo__mark { font-size: 22px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.35)); }
-.logo__col { gap: 5px; }
-.logo--footer .logo__text { font-size: 16px; }
-@media (max-width: 768px) { .logo__text { font-size: 11px; } }
+.logo__tag {
+  font-family: "Pixelify Sans", monospace;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.22);
+}
+.logo__mark { font-size: 24px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.35)); }
+.logo__col { gap: 4px; }
+.logo--footer .logo__text { font-size: 24px; }
+@media (max-width: 768px) { .logo__text { font-size: 20px; } }
