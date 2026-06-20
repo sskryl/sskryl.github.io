@@ -110,9 +110,8 @@
     const free = Api.getFreeMovies();
 
     let html = "";
-    html += UI.heroSlider((trend.length ? trend : free).slice(0, 5));
+    html += UI.hero2((trend.length ? trend : free).slice(0, 4));
     html += '<div class="container">';
-    if (!Taste.hasProfile()) html += UI.onboarding();
     html += UI.tgBanner();
 
     const history = UI.getHistory();

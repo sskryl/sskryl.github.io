@@ -145,6 +145,39 @@
       </section>`;
   }
 
+  // Продуктовый hero: посыл + выбор по настроению + «веер» постеров
+  function hero2(featured) {
+    const posters = (featured || []).filter((m) => m.poster).slice(0, 4);
+    const fan = posters
+      .map((m, i) => `<img class="hero2__poster" style="--i:${i}" src="${esc(m.poster)}" alt="" loading="lazy" onerror="this.remove()">`)
+      .join("");
+    const moods = [
+      { e: "😂", t: "Посмеяться", h: "#/catalog/genre/35" },
+      { e: "😱", t: "Испугаться", h: "#/catalog/genre/27" },
+      { e: "❤️", t: "Влюбиться", h: "#/catalog/genre/10749" },
+      { e: "🕵️", t: "Подумать", h: "#/catalog/genre/9648" },
+      { e: "🚀", t: "В другой мир", h: "#/catalog/genre/878" },
+    ]
+      .map((m) => `<a class="mood" href="${m.h}">${m.e} ${esc(m.t)}</a>`)
+      .join("");
+    return `
+      <section class="hero2">
+        <div class="hero2__inner">
+          <div class="hero2__text">
+            <span class="hero2__badge">🍿 умный подбор кино</span>
+            <h1 class="hero2__title">Не знаешь, что посмотреть?</h1>
+            <p class="hero2__sub">Выбери настроение — и получи фильм за 10 секунд. Бесплатно и без регистрации.</p>
+            <div class="hero2__moods">${moods}</div>
+            <div class="hero2__cta">
+              <a class="btn btn--lg" href="#/taste">🎛 Точный подбор</a>
+              <a class="btn btn--ghost btn--lg" href="#/swipe">🎬 Листать фильмы</a>
+            </div>
+          </div>
+          <div class="hero2__fan">${fan}</div>
+        </div>
+      </section>`;
+  }
+
   function tgBanner() {
     const url = (window.CINEMA_CONFIG && window.CINEMA_CONFIG.telegramBotUrl) || "#";
     return `
@@ -272,7 +305,7 @@
   }
 
   window.UI = {
-    card, grid, row, section, heroSlider, tgBanner, onboarding, empty,
+    card, grid, row, section, heroSlider, hero2, tgBanner, onboarding, empty,
     skeletonHome, skeletonGrid, skeletonRow,
     detail, getHistory, addToHistory, esc,
     movie: (id) => reg.get(String(id)),
