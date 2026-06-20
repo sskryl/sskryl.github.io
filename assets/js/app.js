@@ -150,7 +150,7 @@
     let html = "";
     // 1) Новинки  2) Поиск  3) Hero
     html += '<div class="container home-top">';
-    html += UI.row("Новинки", freshList.slice(0, 18), "#/catalog?sort=release_date.desc", "🆕");
+    html += UI.row("Новинки", freshList.slice(0, 18), "#/cat/new", "🆕");
     html += homeSearch;
     html += "</div>";
     html += UI.hero2((heroPool.length ? heroPool : free).slice(0, 4));
@@ -268,7 +268,7 @@
     movies: { title: "Фильмы", emoji: "🎬", genre: null, catalog: "#/catalog", kind: "showcase", extra: [28, 35, 878, 18, 12] },
     toons: { title: "Мультфильмы", emoji: "🧸", genre: 16, catalog: "#/catalog/genre/16", kind: "showcase", extra: [] },
     anime: { title: "Аниме", emoji: "🎌", genre: "anime", catalog: "#/catalog/genre/anime", kind: "showcase", extra: [] },
-    new: { title: "Новинки", emoji: "🆕", genre: null, catalog: "#/catalog?sort=release_date.desc", kind: "new", extra: [28, 35, 878, 18, 16, 27] },
+    new: { title: "Новинки", emoji: "🆕", genre: null, catalog: "#/catalog?sort=release_date.desc", kind: "showcase", extra: [28, 35, 878, 18, 12] },
   };
   async function renderCategory(key) {
     stopHero();
