@@ -403,7 +403,13 @@
   function rollFeatured() {
     const rated = Taste.getRatings ? Taste.getRatings() : {};
     let pool = (featState.pool || []).filter(
-      (m) => m.backdrop && !rated[String(m.id)] && String(m.id) !== String(featState.currentId)
+      (m) =>
+        m.backdrop &&
+        !rated[String(m.id)] &&
+        String(m.id) !== String(featState.currentId) &&
+        // отсекаем «мусор»: мало голосов или подозрительно высокий рейтинг при малой базе
+        (m.voteCount == null || m.voteCount >= 150) &&
+        (!m.rating || m.rating <= 9.2 || (m.voteCount || 0) >= 1000)
     );
     if (Taste.hasProfile()) pool = Taste.rank(pool);
     const m = pool[0] || null;
@@ -484,7 +490,8 @@
     const v = (r) => (r.status === "fulfilled" ? r.value.results : []);
     const pop = v(popR), nw = v(newR), tp = v(topR);
 
-    featState = { pool: dedupeById(pop.concat(tp)), ctx: cat.emoji + " " + cat.title, currentId: null };
+    // для hero берём только ПОПУЛЯРНОЕ (не сортировку «по рейтингу» — там мусор)
+    featState = { pool: dedupeById(pop), ctx: cat.emoji + " " + cat.title, currentId: null };
     const feat = rollFeatured();
     if (heroBox) heroBox.innerHTML = feat ? UI.featuredHero(feat, featState.ctx) : collheroHtml({ emoji: cat.emoji, title: cat.title, subtitle: "Популярное, новинки и топ" });
 

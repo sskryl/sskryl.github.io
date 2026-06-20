@@ -72,6 +72,7 @@
       country: "",
       genres: m.genre_ids || (m.genres ? m.genres.map((g) => g.id) : []),
       rating: m.vote_average ? Math.round(m.vote_average * 10) / 10 : null,
+      voteCount: m.vote_count || 0,
       runtime: m.runtime || null,
       director: "",
       overview: m.overview || "",
@@ -150,7 +151,7 @@
           sort_by: "popularity.desc",
           "primary_release_date.gte": from.toISOString().slice(0, 10),
           "primary_release_date.lte": today.toISOString().slice(0, 10),
-          "vote_count.gte": 30,
+          "vote_count.gte": 80,
           page,
         });
         return { results: d.results.map(normTmdb), totalPages: d.total_pages };
@@ -180,7 +181,11 @@
     async discover({ genre, year, sort, minRating, page = 1 } = {}) {
       const isAnime = String(genre) === "anime";
       if (this.hasTmdb()) {
-        const params = { sort_by: sort || "popularity.desc", "vote_count.gte": 40, page };
+        const sortBy = sort || "popularity.desc";
+        // Жёсткий порог голосов: для сортировки «по рейтингу» — выше,
+        // иначе всплывают мусорные фильмы с 9.x из десятка голосов.
+        const minVotes = sortBy === "vote_average.desc" ? 400 : 120;
+        const params = { sort_by: sortBy, "vote_count.gte": minVotes, page };
         if (isAnime) {
           params.with_genres = 16;
           params.with_original_language = "ja";
@@ -210,7 +215,7 @@
     // Подбор по нескольким жанрам (OR) + диапазон годов — для «Слайдеров вкуса»
     async discoverMulti({ genreIds, sort, releaseGte, releaseLte, page = 1 } = {}) {
       if (this.hasTmdb()) {
-        const params = { sort_by: sort || "popularity.desc", "vote_count.gte": 40, page };
+        const params = { sort_by: sort || "popularity.desc", "vote_count.gte": 120, page };
         if (genreIds && genreIds.length) params.with_genres = genreIds.join("|");
         if (releaseGte) params["primary_release_date.gte"] = releaseGte;
         if (releaseLte) params["primary_release_date.lte"] = releaseLte;
