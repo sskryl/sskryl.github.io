@@ -734,3 +734,9 @@ button { font-family: inherit; cursor: pointer; }
 .collhero__t { font-size: 30px; margin: 0; }
 .collhero__s { color: var(--text-dim); margin: 4px 0 0; }
 @media (max-width: 600px) { .collhero__e { font-size: 40px; } .collhero__t { font-size: 24px; } }
+
+/* --- Персонализация меню: «Ваши жанры» --- */
+.nav__personal { border-bottom: 1px solid var(--border); margin-bottom: 6px; padding-bottom: 8px; }
+.nav__personal-h { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); font-weight: 700; padding: 4px 12px 6px; }
+.nav__personal-link { display: block; padding: 8px 12px; border-radius: 8px; color: var(--text); font-size: 14px; transition: background 0.12s; }
+.nav__personal-link:hover { background: var(--surface); color: var(--accent); }

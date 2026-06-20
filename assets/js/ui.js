@@ -217,8 +217,14 @@
   function collectionList() { return COLLECTIONS; }
   function collection(key) { return COLLECTIONS.find(function (c) { return c.key === key; }); }
 
-  function collectionCards() {
-    return `<div class="collections">${COLLECTIONS.map(
+  function collectionCards(prefGenres) {
+    let list = COLLECTIONS.slice();
+    if (prefGenres && prefGenres.length) {
+      const pref = prefGenres.map(String);
+      const liked = (c) => pref.indexOf(String(c.q.genre)) >= 0;
+      list = list.filter(liked).concat(list.filter((c) => !liked(c)));
+    }
+    return `<div class="collections">${list.map(
       (c) => `<a class="coll coll--${c.key}" href="#/collection/${c.key}"><span class="coll__e">${c.emoji}</span><span class="coll__b"><span class="coll__t">${esc(c.title)}</span><span class="coll__s">${esc(c.subtitle || "")}</span></span></a>`
     ).join("")}</div>`;
   }

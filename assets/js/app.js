@@ -117,8 +117,9 @@
     html += UI.pickerBand();
     html += '<div id="home-foryou"></div>';
 
-    // Подборки — быстрые ссылки на страницы коллекций
-    html += `<section class="section"><div class="section__head"><h2 class="section__title">🎬 Подборки</h2><a class="section__link" href="#/catalog">Весь каталог →</a></div>${UI.collectionCards()}</section>`;
+    // Подборки — быстрые ссылки (предпочитаемые жанры — вперёд)
+    const prefGenres = Taste.hasProfile() ? Taste.topGenres(4) : null;
+    html += `<section class="section"><div class="section__head"><h2 class="section__title">🎬 Подборки</h2><a class="section__link" href="#/catalog">Весь каталог →</a></div>${UI.collectionCards(prefGenres)}</section>`;
 
     html += UI.row("Новинки", freshList.slice(0, 18), "#/catalog?sort=release_date.desc", "🆕");
     html += UI.row("В тренде", trend.slice(0, 18), "#/cat/movies", "🔥");
@@ -132,15 +133,29 @@
     appEl.innerHTML = html;
     if (window.Ads) Ads.activate();
 
-    // Тематические ряды-коллекции догружаем после основной отрисовки
+    // Тематические ряды догружаем после основной отрисовки.
+    // Есть профиль — собираем ряды под топ-жанры пользователя; иначе — общие подборки.
     const collBox = document.getElementById("home-coll");
-    for (const c of UI.collectionList().slice(0, 4)) {
-      try {
-        const g = await Api.discover({ ...c.q, sort: "popularity.desc", page: 1 });
-        if (g.results.length && collBox) {
-          collBox.insertAdjacentHTML("beforeend", UI.row(c.emoji + " " + c.title, g.results.slice(0, 18), "#/collection/" + c.key));
-        }
-      } catch (e) {}
+    const myGenres = Taste.hasProfile() ? Taste.topGenres(4) : [];
+    if (myGenres.length) {
+      for (const gid of myGenres) {
+        try {
+          const g = await Api.getByGenre(gid, 1);
+          const ranked = Taste.rank(g.results).slice(0, 18);
+          if (ranked.length && collBox) {
+            collBox.insertAdjacentHTML("beforeend", UI.row("Вам понравится: " + Api.genreName(gid), ranked, "#/catalog/genre/" + gid, "🎯"));
+          }
+        } catch (e) {}
+      }
+    } else {
+      for (const c of UI.collectionList().slice(0, 4)) {
+        try {
+          const g = await Api.discover({ ...c.q, sort: "popularity.desc", page: 1 });
+          if (g.results.length && collBox) {
+            collBox.insertAdjacentHTML("beforeend", UI.row(c.emoji + " " + c.title, g.results.slice(0, 18), "#/collection/" + c.key));
+          }
+        } catch (e) {}
+      }
     }
 
     // Персональный ряд «Для вас» (если есть профиль)
@@ -853,9 +868,28 @@
     modalContentEl.innerHTML = "";
   }
 
+  // Персонализация меню: блок «Ваши жанры» в выпадашке «Подобрать»
+  function applyPersonalNav() {
+    const menu = document.querySelector(".nav__menu--wide");
+    if (!menu) return;
+    const old = menu.querySelector(".nav__personal");
+    if (old) old.remove();
+    if (!Taste.hasProfile()) return;
+    const gids = Taste.topGenres(4).filter((g) => Api.genreName(g));
+    if (!gids.length) return;
+    const links = gids
+      .map((g) => `<a href="#/catalog/genre/${g}" class="nav__menulink nav__personal-link">🎯 ${UI.esc(Api.genreName(g))}</a>`)
+      .join("");
+    menu.insertAdjacentHTML(
+      "afterbegin",
+      `<div class="nav__personal"><div class="nav__personal-h">★ Ваши жанры</div>${links}</div>`
+    );
+  }
+
   // ------------------------------------------------------------- РОУТЕР
   function router() {
     highlightNav();
+    applyPersonalNav();
     const hash = location.hash || "#/";
     const path = hash.split("?")[0];
     const query = parseQuery(hash);
