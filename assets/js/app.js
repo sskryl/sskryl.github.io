@@ -136,9 +136,10 @@
     const free = Api.getFreeMovies();
 
     const freshList = (val(fresh).length ? val(fresh) : free);
+    const heroBg = trend.concat(val(top), freshList).find((m) => m && m.backdrop) || null;
     let html = "";
-    // Hero + «Новинки» объединены в один блок
-    html += UI.hero2((freshList.length ? freshList : free).slice(0, 12));
+    // Hero (кинокадр на фоне) + «Новинки» объединены в один блок
+    html += UI.hero2((freshList.length ? freshList : free).slice(0, 12), heroBg);
     html += '<div class="container">';
 
     html += UI.pickerBand();

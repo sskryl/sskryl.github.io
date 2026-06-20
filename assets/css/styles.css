@@ -827,3 +827,37 @@ button { font-family: inherit; cursor: pointer; }
 .hero2__inner { display: block; }
 .hero2__text { max-width: 760px; }
 .hero2__newband { margin-top: 24px; border-top: 1px solid var(--border); padding-top: 18px; }
+
+/* ============================================================================
+   Кинематографичный hero: кадр фильма на фоне + лента «Новинки» снизу
+   ========================================================================== */
+.hero2 { background: var(--bg-2); }
+.hero2__top { position: relative; padding: 48px 44px; background-size: cover; background-position: center 20%; background-color: var(--bg-2); }
+.hero2:not(.hero2--cine) .hero2__top {
+  background-image:
+    radial-gradient(120% 150% at 0% 0%, rgba(255,87,34,0.18), transparent 55%),
+    radial-gradient(120% 150% at 100% 100%, rgba(42,171,238,0.14), transparent 55%);
+}
+.hero2--cine .hero2__top { min-height: 360px; display: flex; align-items: center; }
+.hero2__scrim { display: none; }
+.hero2--cine .hero2__scrim { display: block; position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(8,10,14,0.93) 0%, rgba(8,10,14,0.72) 45%, rgba(8,10,14,0.35) 100%); }
+.hero2__text { position: relative; z-index: 2; max-width: 720px; }
+
+/* кинорежим — светлый текст поверх кадра */
+.hero2--cine .hero2__title { color: #fff; text-shadow: 0 2px 16px rgba(0,0,0,0.55); }
+.hero2--cine .hero2__sub { color: #e6e9f0; text-shadow: 0 1px 8px rgba(0,0,0,0.55); }
+.hero2--cine .hero2__trust { color: #cfd4de; }
+.hero2--cine .hero2__badge { background: var(--accent); color: #fff; }
+.hero2--cine .mood { background: rgba(255,255,255,0.14); color: #fff; border-color: rgba(255,255,255,0.28); }
+.hero2--cine .mood:hover { background: var(--accent); border-color: var(--accent); color: #fff; transform: translateY(-2px); }
+.hero2--cine .btn--ghost { color: #fff; border-color: rgba(255,255,255,0.45); }
+.hero2--cine .btn--ghost:hover { background: rgba(255,255,255,0.12); }
+
+/* лента «Новинки» снизу — на светлом фоне, карточки читаемы */
+.hero2__newband { margin: 0; border-top: 1px solid var(--border); background: var(--bg-2); padding: 18px 44px 26px; }
+@media (max-width: 700px) {
+  .hero2__top { padding: 32px 20px; }
+  .hero2--cine .hero2__top { min-height: 300px; }
+  .hero2__newband { padding: 16px 20px 22px; }
+}

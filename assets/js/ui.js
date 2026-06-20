@@ -156,8 +156,8 @@
       </section>`;
   }
 
-  // Продуктовый hero, объединённый с разделом «Новинки»
-  function hero2(novinki) {
+  // Продуктовый hero (кинокадр на фоне) + лента «Новинки»
+  function hero2(novinki, bgMovie) {
     const moods = [
       { e: "😂", t: "Посмеяться", h: "#/catalog/genre/35" },
       { e: "😱", t: "Испугаться", h: "#/catalog/genre/27" },
@@ -169,9 +169,11 @@
       .join("");
     const items = (novinki || []).filter((m) => m.poster).slice(0, 12);
     const strip = items.map(card).join("");
+    const bg = bgMovie && bgMovie.backdrop ? bgMovie.backdrop : "";
     return `
-      <section class="hero2">
-        <div class="hero2__inner">
+      <section class="hero2 ${bg ? "hero2--cine" : ""}">
+        <div class="hero2__top" ${bg ? `style="background-image:url('${esc(bg)}')"` : ""}>
+          <div class="hero2__scrim"></div>
           <div class="hero2__text">
             <span class="hero2__badge">🍷 персональный подбор кино</span>
             <h1 class="hero2__title">Твой личный <span class="hero2__accent">кино-сомелье</span></h1>
@@ -183,10 +185,10 @@
             </div>
             <div class="hero2__trust"><span>🧠 учится на твоём вкусе</span><span>🆓 бесплатно</span><span>⚡ без регистрации</span></div>
           </div>
-          <div class="hero2__newband">
-            <div class="hero2__new-head"><span>🆕 Новинки</span><a href="#/catalog?sort=release_date.desc">Все →</a></div>
-            <div class="hero2__new-strip">${strip}</div>
-          </div>
+        </div>
+        <div class="hero2__newband">
+          <div class="hero2__new-head"><span>🆕 Новинки</span><a href="#/catalog?sort=release_date.desc">Все →</a></div>
+          <div class="hero2__new-strip">${strip}</div>
         </div>
       </section>`;
   }
