@@ -175,15 +175,15 @@
       <section class="hero2">
         <div class="hero2__inner">
           <div class="hero2__text">
-            <span class="hero2__badge">🍿 умный подбор кино</span>
-            <h1 class="hero2__title">Не знаешь, <span class="hero2__accent">что посмотреть?</span></h1>
-            <p class="hero2__sub">Выбери настроение — и получи фильм за 10 секунд.</p>
+            <span class="hero2__badge">⚡ персональный подбор кино</span>
+            <h1 class="hero2__title">Первый <span class="hero2__accent">читерский</span> Нетфликс</h1>
+            <p class="hero2__sub">Хватит скроллить часами. ИИ учится на твоих оценках и подбирает фильмы <b>лично под тебя</b> — бесплатно.</p>
             <div class="hero2__moods">${moods}</div>
             <div class="hero2__cta">
-              <a class="btn btn--lg" href="#/match">🎯 Точный подбор</a>
+              <a class="btn btn--lg" href="#/match">🎯 Собрать кинопрофиль</a>
               <a class="btn btn--ghost btn--lg" href="#/swipe">🎬 Листать фильмы</a>
             </div>
-            <div class="hero2__trust"><span>🎬 тысячи фильмов</span><span>🆓 бесплатно</span><span>⚡ без регистрации</span></div>
+            <div class="hero2__trust"><span>🧠 учится на твоём вкусе</span><span>🆓 бесплатно</span><span>⚡ без регистрации</span></div>
           </div>
           <div class="hero2__fan">${fan}</div>
         </div>
