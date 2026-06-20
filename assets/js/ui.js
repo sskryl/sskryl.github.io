@@ -172,7 +172,8 @@
     const bg = bgMovie && bgMovie.backdrop ? bgMovie.backdrop : "";
     return `
       <section class="hero2 ${bg ? "hero2--cine" : ""}">
-        <div class="hero2__top" ${bg ? `style="background-image:url('${esc(bg)}')"` : ""}>
+        <div class="hero2__top">
+          ${bg ? `<div class="hero2__bg is-on" style="background-image:url('${esc(bg)}')"></div><div class="hero2__bg"></div>` : ""}
           <div class="hero2__scrim"></div>
           <div class="hero2__text">
             <span class="hero2__badge">🍷 персональный подбор кино</span>

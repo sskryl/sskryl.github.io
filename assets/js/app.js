@@ -106,20 +106,26 @@
     return a;
   }
 
-  // «Живой» hero: периодически прокручиваем веер постеров
-  function startHeroFan(pool) {
+  // «Живой» hero: плавная смена фонового кадра (кроссфейд между двумя слоями)
+  function startHeroBg(urls) {
     stopHero();
-    const fan = document.querySelector(".hero2__fan");
-    if (!fan || !pool || pool.length <= 4) return;
-    let idx = 0;
+    const top = document.querySelector(".hero2--cine .hero2__top");
+    if (!top || !urls || urls.length < 2) return;
+    const layers = top.querySelectorAll(".hero2__bg");
+    if (layers.length < 2) return;
+    let idx = 0, active = 0;
     heroTimer = setInterval(() => {
-      idx = (idx + 4) % pool.length;
-      const slice = [];
-      for (let i = 0; i < 4; i++) slice.push(pool[(idx + i) % pool.length]);
-      fan.innerHTML = slice
-        .map((m, i) => `<img class="hero2__poster" style="--i:${i}" src="${UI.esc(m.poster)}" alt="" loading="lazy" onerror="this.remove()">`)
-        .join("");
-    }, 5000);
+      idx = (idx + 1) % urls.length;
+      const next = active === 0 ? 1 : 0;
+      const img = new Image();
+      img.onload = () => {
+        layers[next].style.backgroundImage = `url('${urls[idx]}')`;
+        layers[next].classList.add("is-on");
+        layers[active].classList.remove("is-on");
+        active = next;
+      };
+      img.src = urls[idx];
+    }, 6000);
   }
 
   async function renderHome() {
@@ -136,7 +142,10 @@
     const free = Api.getFreeMovies();
 
     const freshList = (val(fresh).length ? val(fresh) : free);
-    const heroBg = trend.concat(val(top), freshList).find((m) => m && m.backdrop) || null;
+    const heroBgPool = Array.from(new Set(
+      trend.concat(val(top), freshList).filter((m) => m && m.backdrop).map((m) => m.backdrop)
+    ));
+    const heroBg = heroBgPool.length ? { backdrop: heroBgPool[0] } : null;
     let html = "";
     // Hero (кинокадр на фоне) + «Новинки» объединены в один блок
     html += UI.hero2((freshList.length ? freshList : free).slice(0, 12), heroBg);
@@ -160,6 +169,7 @@
 
     appEl.innerHTML = html;
     if (window.Ads) Ads.activate();
+    startHeroBg(shuffle(heroBgPool));
 
     // Тематические ряды догружаем после основной отрисовки.
     // Есть профиль — собираем ряды под топ-жанры пользователя; иначе — общие подборки.
