@@ -265,10 +265,10 @@
 
   // ----- Лендинг категории (персональный герой + ряды) -----------------------
   const CATS = {
-    movies: { title: "Фильмы", emoji: "🎬", genre: null, catalog: "#/catalog", kind: "showcase", extra: [28, 35, 878, 18, 12] },
+    movies: { title: "Фильмы", emoji: "🎬", genre: null, catalog: "#/catalog", kind: "new", extra: [28, 35, 878, 18, 16, 27] },
     toons: { title: "Мультфильмы", emoji: "🧸", genre: 16, catalog: "#/catalog/genre/16", kind: "showcase", extra: [] },
     anime: { title: "Аниме", emoji: "🎌", genre: "anime", catalog: "#/catalog/genre/anime", kind: "showcase", extra: [] },
-    new: { title: "Новинки", emoji: "🆕", genre: null, catalog: "#/catalog?sort=release_date.desc", kind: "new", extra: [28, 35, 878, 18, 16, 27] },
+    new: { title: "Новинки", emoji: "🆕", genre: null, catalog: "#/catalog?sort=release_date.desc", kind: "showcase", extra: [28, 35, 878, 18, 12] },
   };
   async function renderCategory(key) {
     stopHero();
