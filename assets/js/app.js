@@ -35,6 +35,7 @@
   function routeKey(h) {
     if (["#/match", "#/taste", "#/swipe", "#/quiz", "#/foryou"].some((r) => h.indexOf(r) === 0)) return "podbor";
     if (h.indexOf("#/my") === 0) return "my";
+    if (h.indexOf("#/cat/new") === 0) return "new";
     if (h.indexOf("#/catalog") === 0 && h.indexOf("release_date") >= 0) return "new";
     if (h.indexOf("#/catalog") === 0 || h.indexOf("#/free") === 0 || h.indexOf("#/cat/") === 0 || h.indexOf("#/collection/") === 0) return "catalog";
     if (h === "#/" || h === "") return "home";
@@ -96,6 +97,31 @@
   }
 
   // ------------------------------------------------------------- ГЛАВНАЯ
+  function shuffle(arr) {
+    const a = (arr || []).slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  // «Живой» hero: периодически прокручиваем веер постеров
+  function startHeroFan(pool) {
+    stopHero();
+    const fan = document.querySelector(".hero2__fan");
+    if (!fan || !pool || pool.length <= 4) return;
+    let idx = 0;
+    heroTimer = setInterval(() => {
+      idx = (idx + 4) % pool.length;
+      const slice = [];
+      for (let i = 0; i < 4; i++) slice.push(pool[(idx + i) % pool.length]);
+      fan.innerHTML = slice
+        .map((m, i) => `<img class="hero2__poster" style="--i:${i}" src="${UI.esc(m.poster)}" alt="" loading="lazy" onerror="this.remove()">`)
+        .join("");
+    }, 5000);
+  }
+
   async function renderHome() {
     stopHero();
     appEl.innerHTML = UI.skeletonHome();
@@ -110,18 +136,23 @@
     const free = Api.getFreeMovies();
 
     const freshList = (val(fresh).length ? val(fresh) : free);
+    // Пул для «живого» hero — перемешиваем тренды/топ/новинки и крутим веер
+    const heroPool = shuffle(dedupeById(trend.concat(val(top), freshList)).filter((m) => m.poster));
     let html = "";
-    html += UI.hero2((trend.length ? trend : free).slice(0, 4));
+    html += UI.hero2((heroPool.length ? heroPool : free).slice(0, 4));
     html += '<div class="container">';
-    html += UI.tgBanner();
+
+    // Новинки — самый верх
+    html += UI.row("Новинки", freshList.slice(0, 18), "#/cat/new", "🆕");
+
     html += UI.pickerBand();
     html += '<div id="home-foryou"></div>';
+    html += UI.tgBanner();
 
     // Подборки — быстрые ссылки (предпочитаемые жанры — вперёд)
     const prefGenres = Taste.hasProfile() ? Taste.topGenres(4) : null;
     html += `<section class="section"><div class="section__head"><h2 class="section__title">🎬 Подборки</h2><a class="section__link" href="#/catalog">Весь каталог →</a></div>${UI.collectionCards(prefGenres)}</section>`;
 
-    html += UI.row("Новинки", freshList.slice(0, 18), "#/catalog?sort=release_date.desc", "🆕");
     html += UI.row("В тренде", trend.slice(0, 18), "#/cat/movies", "🔥");
     const history = UI.getHistory();
     if (history.length) html += UI.row("Вы недавно смотрели", history.slice(0, 16), null, "🕑");
@@ -132,6 +163,7 @@
 
     appEl.innerHTML = html;
     if (window.Ads) Ads.activate();
+    startHeroFan(heroPool);
 
     // Тематические ряды догружаем после основной отрисовки.
     // Есть профиль — собираем ряды под топ-жанры пользователя; иначе — общие подборки.
@@ -222,9 +254,10 @@
 
   // ----- Лендинг категории (персональный герой + ряды) -----------------------
   const CATS = {
-    movies: { title: "Фильмы", emoji: "🎬", genre: null, catalog: "#/catalog" },
-    toons: { title: "Мультфильмы", emoji: "🧸", genre: 16, catalog: "#/catalog/genre/16" },
-    anime: { title: "Аниме", emoji: "🎌", genre: "anime", catalog: "#/catalog/genre/anime" },
+    movies: { title: "Фильмы", emoji: "🎬", genre: null, catalog: "#/catalog", kind: "showcase", extra: [28, 35, 878, 18, 12] },
+    toons: { title: "Мультфильмы", emoji: "🧸", genre: 16, catalog: "#/catalog/genre/16", kind: "showcase", extra: [] },
+    anime: { title: "Аниме", emoji: "🎌", genre: "anime", catalog: "#/catalog/genre/anime", kind: "showcase", extra: [] },
+    new: { title: "Новинки", emoji: "🆕", genre: null, catalog: "#/catalog?sort=release_date.desc", kind: "new", extra: [28, 35, 878, 18, 16, 27] },
   };
   async function renderCategory(key) {
     stopHero();
@@ -236,7 +269,27 @@
       <div class="container"><div id="catland">${UI.skeletonRow()}</div>
       <div class="load-more"><a class="btn btn--lg" href="${cat.catalog}">Открыть весь каталог с фильтрами →</a></div></div>`;
     scrollTop();
+    const heroBox = document.getElementById("feat-hero");
+    const box = document.getElementById("catland");
+    if (box) box.innerHTML = "";
 
+    if (cat.kind === "new") {
+      // Новинки: свежее в целом + свежее по жанрам
+      const fresh = await Api.getNewReleases(1).then((d) => d.results).catch(() => []);
+      featState = { pool: dedupeById(fresh), ctx: cat.emoji + " " + cat.title, currentId: null };
+      const feat = rollFeatured();
+      if (heroBox) heroBox.innerHTML = feat ? UI.featuredHero(feat, featState.ctx) : collheroHtml({ emoji: cat.emoji, title: cat.title, subtitle: "Свежие релизы" });
+      if (fresh.length && box) box.insertAdjacentHTML("beforeend", UI.row("🆕 Самые свежие", fresh.slice(0, 18), cat.catalog));
+      for (const gid of cat.extra) {
+        try {
+          const g = await Api.discover({ genre: gid, sort: "release_date.desc", page: 1 });
+          if (g.results.length && box) box.insertAdjacentHTML("beforeend", UI.row("🆕 Новое: " + Api.genreName(gid), g.results.slice(0, 18), "#/catalog/genre/" + gid + "?sort=release_date.desc"));
+        } catch (e) {}
+      }
+      return;
+    }
+
+    // showcase: популярное / новинки / топ + жанровые ряды
     const [popR, newR, topR] = await Promise.allSettled([
       Api.discover({ genre: cat.genre, sort: "popularity.desc", page: 1 }),
       Api.discover({ genre: cat.genre, sort: "release_date.desc", page: 1 }),
@@ -245,15 +298,10 @@
     const v = (r) => (r.status === "fulfilled" ? r.value.results : []);
     const pop = v(popR), nw = v(newR), tp = v(topR);
 
-    // персональный фильм-герой
     featState = { pool: dedupeById(pop.concat(tp)), ctx: cat.emoji + " " + cat.title, currentId: null };
-    const heroBox = document.getElementById("feat-hero");
     const feat = rollFeatured();
     if (heroBox) heroBox.innerHTML = feat ? UI.featuredHero(feat, featState.ctx) : collheroHtml({ emoji: cat.emoji, title: cat.title, subtitle: "Популярное, новинки и топ" });
 
-    // ряды
-    const box = document.getElementById("catland");
-    if (box) box.innerHTML = "";
     const rows = [
       { t: "🔥 Популярное", data: pop, link: cat.catalog },
       { t: "🆕 Новинки", data: nw, link: cat.catalog + sep + "sort=release_date.desc" },
@@ -261,6 +309,13 @@
     ];
     for (const r of rows) {
       if (r.data.length && box) box.insertAdjacentHTML("beforeend", UI.row(r.t, r.data.slice(0, 18), r.link));
+    }
+    // жанровые ряды (для «Фильмы»)
+    for (const gid of cat.extra) {
+      try {
+        const g = await Api.discover({ genre: gid, sort: "popularity.desc", page: 1 });
+        if (g.results.length && box) box.insertAdjacentHTML("beforeend", UI.row("🎬 " + Api.genreName(gid), g.results.slice(0, 18), "#/catalog/genre/" + gid));
+      } catch (e) {}
     }
     scrollTop();
   }
