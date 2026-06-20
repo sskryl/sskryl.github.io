@@ -745,3 +745,24 @@ button { font-family: inherit; cursor: pointer; }
 .card { transition: opacity 0.25s ease, transform 0.2s ease, box-shadow 0.2s ease; }
 .card--swap { opacity: 0.35; transform: scale(0.96); pointer-events: none; }
 .card--enter { opacity: 0; transform: translateY(10px) scale(0.96); }
+
+/* ============================================================================
+   Персональный фильм-герой категории/коллекции (.fhero)
+   ========================================================================== */
+.fhero { position: relative; min-height: 440px; display: flex; align-items: flex-end;
+  background-size: cover; background-position: center; margin-bottom: 8px; }
+.fhero__scrim { position: absolute; inset: 0;
+  background: linear-gradient(0deg, var(--bg) 2%, rgba(8,10,14,0.78) 42%, rgba(8,10,14,0.25) 100%); }
+.fhero__in { position: relative; z-index: 2; padding: 52px 20px; max-width: 760px; }
+.fhero__badge { display: inline-block; background: var(--accent); color: #fff; font-size: 12px; font-weight: 800;
+  padding: 5px 12px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 14px; }
+.fhero__title { font-size: 42px; line-height: 1.07; margin-bottom: 12px; color: #fff; text-shadow: 0 2px 14px rgba(0,0,0,0.55); }
+.fhero__meta { display: flex; gap: 14px; flex-wrap: wrap; color: #e3e7f0; font-size: 14px; margin-bottom: 14px; text-shadow: 0 1px 6px rgba(0,0,0,0.6); }
+.fhero__overview { color: #eaedf3; font-size: 15px; margin-bottom: 22px; max-width: 640px;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 1px 6px rgba(0,0,0,0.6); }
+.fhero__actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.fhero__icon { width: 46px; height: 46px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(0,0,0,0.4); color: #fff; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: 0.15s; }
+.fhero__icon:hover { background: rgba(255,87,34,0.85); transform: scale(1.08); }
+.fhero__icon.is-on { background: var(--accent); border-color: var(--accent); }
+@media (max-width: 600px) { .fhero { min-height: 360px; } .fhero__in { padding: 36px 20px; } .fhero__title { font-size: 28px; } }

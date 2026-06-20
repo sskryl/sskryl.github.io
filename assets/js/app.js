@@ -172,17 +172,38 @@
   }
 
   // ----- Страница коллекции --------------------------------------------------
+  // ----- Персональный фильм-герой категории/коллекции ------------------------
+  // Выбирает фильм с наибольшим прогнозом «понравится» (по модели вкуса).
+  let featState = { pool: [], ctx: "", currentId: null };
+  function dedupeById(arr) {
+    const seen = new Set();
+    return (arr || []).filter((m) => { const id = String(m.id); if (seen.has(id)) return false; seen.add(id); return true; });
+  }
+  function collheroHtml(o) {
+    return `<div class="collhero"><div class="container collhero__in"><span class="collhero__e">${UI.esc(o.emoji)}</span><div><h1 class="collhero__t">${UI.esc(o.title)}</h1><p class="collhero__s">${UI.esc(o.subtitle || "Подборка фильмов")}</p></div></div></div>`;
+  }
+  function rollFeatured() {
+    const rated = Taste.getRatings ? Taste.getRatings() : {};
+    let pool = (featState.pool || []).filter(
+      (m) => m.backdrop && !rated[String(m.id)] && String(m.id) !== String(featState.currentId)
+    );
+    if (Taste.hasProfile()) pool = Taste.rank(pool);
+    const m = pool[0] || null;
+    if (m) featState.currentId = m.id;
+    return m;
+  }
+  function renderFeaturedInto(box) {
+    if (!box) return;
+    const m = rollFeatured();
+    if (m) box.innerHTML = UI.featuredHero(m, featState.ctx);
+  }
+
   function renderCollection(key) {
     stopHero();
     const c = UI.collection(key);
     if (!c) { appEl.innerHTML = `<div class="container">${UI.empty("Подборка не найдена")}</div>`; scrollTop(); return; }
     appEl.innerHTML = `
-      <div class="collhero collhero--${c.key}">
-        <div class="container collhero__in">
-          <span class="collhero__e">${c.emoji}</span>
-          <div><h1 class="collhero__t">${UI.esc(c.title)}</h1><p class="collhero__s">${UI.esc(c.subtitle || "")}</p></div>
-        </div>
-      </div>
+      <div id="feat-hero">${collheroHtml(c)}</div>
       <div class="container">
         ${window.Ads ? Ads.slot("catalog") : ""}
         <div id="list-grid">${UI.skeletonGrid()}</div>
@@ -191,10 +212,15 @@
     if (window.Ads) Ads.activate();
     list = { fetch: (p) => Api.discover({ ...c.q, sort: "popularity.desc", page: p }), page: 1, totalPages: 1, items: [] };
     loadListPage();
+    // персональный фильм-герой коллекции
+    Api.discover({ ...c.q, sort: "popularity.desc", page: 1 }).then((d) => {
+      featState = { pool: dedupeById(d.results), ctx: c.emoji + " " + c.title, currentId: null };
+      renderFeaturedInto(document.getElementById("feat-hero"));
+    }).catch(() => {});
     scrollTop();
   }
 
-  // ----- Лендинг категории (витрина с рядами) --------------------------------
+  // ----- Лендинг категории (персональный герой + ряды) -----------------------
   const CATS = {
     movies: { title: "Фильмы", emoji: "🎬", genre: null, catalog: "#/catalog" },
     toons: { title: "Мультфильмы", emoji: "🧸", genre: 16, catalog: "#/catalog/genre/16" },
@@ -205,22 +231,36 @@
     const cat = CATS[key];
     if (!cat) return renderCatalog(null, {});
     const sep = cat.catalog.indexOf("?") >= 0 ? "&" : "?";
-    let html = `<div class="collhero collhero--cat"><div class="container collhero__in"><span class="collhero__e">${cat.emoji}</span><div><h1 class="collhero__t">${cat.title}</h1><p class="collhero__s">Популярное, новинки и топ рейтинга в одном месте</p></div></div></div>`;
-    html += `<div class="container"><div id="catland">${UI.skeletonRow()}</div>`;
-    html += `<div class="load-more"><a class="btn btn--lg" href="${cat.catalog}">Открыть весь каталог с фильтрами →</a></div></div>`;
-    appEl.innerHTML = html;
+    appEl.innerHTML = `
+      <div id="feat-hero">${collheroHtml({ emoji: cat.emoji, title: cat.title, subtitle: "Подбираем под ваш вкус…" })}</div>
+      <div class="container"><div id="catland">${UI.skeletonRow()}</div>
+      <div class="load-more"><a class="btn btn--lg" href="${cat.catalog}">Открыть весь каталог с фильтрами →</a></div></div>`;
+    scrollTop();
+
+    const [popR, newR, topR] = await Promise.allSettled([
+      Api.discover({ genre: cat.genre, sort: "popularity.desc", page: 1 }),
+      Api.discover({ genre: cat.genre, sort: "release_date.desc", page: 1 }),
+      Api.discover({ genre: cat.genre, sort: "vote_average.desc", page: 1 }),
+    ]);
+    const v = (r) => (r.status === "fulfilled" ? r.value.results : []);
+    const pop = v(popR), nw = v(newR), tp = v(topR);
+
+    // персональный фильм-герой
+    featState = { pool: dedupeById(pop.concat(tp)), ctx: cat.emoji + " " + cat.title, currentId: null };
+    const heroBox = document.getElementById("feat-hero");
+    const feat = rollFeatured();
+    if (heroBox) heroBox.innerHTML = feat ? UI.featuredHero(feat, featState.ctx) : collheroHtml({ emoji: cat.emoji, title: cat.title, subtitle: "Популярное, новинки и топ" });
+
+    // ряды
     const box = document.getElementById("catland");
     if (box) box.innerHTML = "";
     const rows = [
-      { t: "🔥 Популярное", sort: "popularity.desc", link: cat.catalog },
-      { t: "🆕 Новинки", sort: "release_date.desc", link: cat.catalog + sep + "sort=release_date.desc" },
-      { t: "⭐ Топ рейтинга", sort: "vote_average.desc", link: cat.catalog + sep + "sort=vote_average.desc" },
+      { t: "🔥 Популярное", data: pop, link: cat.catalog },
+      { t: "🆕 Новинки", data: nw, link: cat.catalog + sep + "sort=release_date.desc" },
+      { t: "⭐ Топ рейтинга", data: tp, link: cat.catalog + sep + "sort=vote_average.desc" },
     ];
     for (const r of rows) {
-      try {
-        const g = await Api.discover({ genre: cat.genre, sort: r.sort, page: 1 });
-        if (g.results.length && box) box.insertAdjacentHTML("beforeend", UI.row(r.t, g.results.slice(0, 18), r.link));
-      } catch (e) {}
+      if (r.data.length && box) box.insertAdjacentHTML("beforeend", UI.row(r.t, r.data.slice(0, 18), r.link));
     }
     scrollTop();
   }
@@ -1112,6 +1152,10 @@
         }
         return;
       }
+      if (e.target.closest("[data-refeat]")) {
+        renderFeaturedInto(document.getElementById("feat-hero"));
+        return;
+      }
       const cardRate = e.target.closest("[data-card-rate]");
       if (cardRate) {
         const id = cardRate.getAttribute("data-rid");
@@ -1121,9 +1165,13 @@
           Taste.rate(m, liked);
           if (window.Sync) Sync.sendRate(m, liked);
           const cardEl = cardRate.closest(".card");
+          const featEl = cardRate.closest(".fhero");
           if (cardEl) {
             // Тиндер-поведение: после оценки заменяем карточку новой рекомендацией
             replaceCardWithReco(cardEl);
+          } else if (featEl) {
+            // Фильм-герой категории — перекатываем на следующий по вкусу
+            renderFeaturedInto(document.getElementById("feat-hero"));
           } else {
             // В модалке фильма карточки нет — просто отмечаем кнопки
             document.querySelectorAll('[data-card-rate][data-rid="' + id + '"]').forEach((btn) => {

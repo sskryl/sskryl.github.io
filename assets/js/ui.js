@@ -190,6 +190,35 @@
       </section>`;
   }
 
+  // Персональный фильм-герой категории (высокий шанс понравиться)
+  function featuredHero(movie, ctx) {
+    register(movie);
+    const bg = movie.backdrop || movie.poster || "";
+    const genres = Api.genreNames(movie.genres, 3).join(" • ");
+    const on = inList(movie.id);
+    return `
+      <section class="fhero" style="background-image:url('${esc(bg)}')">
+        <div class="fhero__scrim"></div>
+        <div class="container fhero__in">
+          <span class="fhero__badge">✨ Высокий шанс понравиться${ctx ? " · " + esc(ctx) : ""}</span>
+          <h1 class="fhero__title">${esc(movie.title)}</h1>
+          <div class="fhero__meta">
+            ${movie.year ? `<span>${esc(movie.year)}</span>` : ""}
+            ${movie.rating ? `<span>★ ${esc(movie.rating)}</span>` : ""}
+            ${genres ? `<span>${esc(genres)}</span>` : ""}
+          </div>
+          <p class="fhero__overview">${esc(movie.overview || "")}</p>
+          <div class="fhero__actions">
+            <button class="btn btn--lg" data-movie="${esc(movie.id)}">▶ Смотреть</button>
+            <button class="fhero__icon" data-card-rate="like" data-rid="${esc(movie.id)}" title="Нравится">❤️</button>
+            <button class="fhero__icon" data-card-rate="dislike" data-rid="${esc(movie.id)}" title="Не то">👎</button>
+            <button class="fhero__icon ${on ? "is-on" : ""}" data-watch="${esc(movie.id)}" title="В список">${on ? "🔖" : "＋"}</button>
+            <button class="fhero__icon" data-refeat title="Показать другой">🔄</button>
+          </div>
+        </div>
+      </section>`;
+  }
+
   function tgBanner() {
     const url = (window.CINEMA_CONFIG && window.CINEMA_CONFIG.telegramBotUrl) || "#";
     return `
@@ -373,7 +402,7 @@
   }
 
   window.UI = {
-    card, grid, row, section, heroSlider, hero2, tgBanner, onboarding, empty,
+    card, grid, row, section, heroSlider, hero2, featuredHero, tgBanner, onboarding, empty,
     collectionCards, collectionList, collection, pickerBand, sidebarList,
     skeletonHome, skeletonGrid, skeletonRow,
     detail, getHistory, addToHistory, esc,
