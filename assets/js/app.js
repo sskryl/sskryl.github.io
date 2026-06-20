@@ -517,6 +517,8 @@
         out.push(m);
       }
     }
+    // Обогащаем кандидатов богатыми признаками (ключевые слова/актёры/режиссёр)
+    await Api.enrichMany(out, 24);
     return Taste.rank(out);
   }
 

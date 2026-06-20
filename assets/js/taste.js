@@ -32,6 +32,10 @@
     const e = era(m.year);
     if (e) f[e] = 1;
     if (+m.year >= NOW - 2) f["recent"] = 1;
+    // Богатые признаки (если фильм обогащён через Api.enrich/getMovie)
+    (m.keywordIds || []).slice(0, 12).forEach((k) => (f["kw:" + k] = 1));
+    (m.castIds || []).slice(0, 5).forEach((c) => (f["cast:" + c] = 1));
+    if (m.directorId) f["dir:" + m.directorId] = 1;
     return f;
   }
   function dot(w, f) { let s = 0; for (const k in f) s += (w[k] || 0) * f[k]; return s; }

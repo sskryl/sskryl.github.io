@@ -15,6 +15,27 @@
   const ARCHIVE_IMG = "https://archive.org/services/img/";
   const ARCHIVE_EMBED = "https://archive.org/embed/";
 
+  // Кэш «богатых» признаков (ключевые слова / актёры / режиссёр) по tmdbId
+  const DKEY = "cinema:details";
+  function loadDetails() { try { return JSON.parse(localStorage.getItem(DKEY)) || {}; } catch (e) { return {}; } }
+  function saveDetails(d) { try { localStorage.setItem(DKEY, JSON.stringify(d)); } catch (e) {} }
+  function extractRich(data) {
+    const kwSrc = (data.keywords && (data.keywords.keywords || data.keywords.results)) || [];
+    const crew = (data.credits && data.credits.crew) || [];
+    const dir = crew.find((c) => c.job === "Director");
+    return {
+      kw: kwSrc.slice(0, 12).map((k) => k.id),
+      cast: ((data.credits && data.credits.cast) || []).slice(0, 5).map((c) => c.id),
+      dir: dir ? dir.id : null,
+    };
+  }
+  function applyRich(movie, rich) {
+    movie.keywordIds = rich.kw || [];
+    movie.castIds = rich.cast || [];
+    movie.directorId = rich.dir || null;
+    return movie;
+  }
+
   let catalog = { genres: [], movies: [] };
   let genreMap = new Map();
 
@@ -221,13 +242,40 @@
       return localPage(all);
     },
 
+    // Обогащает фильм «богатыми» признаками (с кэшем). Только TMDB.
+    async enrich(movie) {
+      if (!movie || movie.source !== "tmdb" || !this.hasTmdb()) return movie;
+      if (movie.keywordIds) return movie;
+      const cache = loadDetails();
+      const key = String(movie.tmdbId);
+      if (cache[key]) return applyRich(movie, cache[key]);
+      try {
+        const data = await tmdbFetch("/movie/" + movie.tmdbId, { append_to_response: "credits,keywords" });
+        const rich = extractRich(data);
+        cache[key] = rich;
+        saveDetails(cache);
+        return applyRich(movie, rich);
+      } catch (e) {
+        return movie;
+      }
+    },
+    async enrichMany(movies, limit = 20) {
+      if (!this.hasTmdb() || !movies || !movies.length) return movies || [];
+      await Promise.all(movies.slice(0, limit).map((m) => this.enrich(m).catch(() => m)));
+      return movies;
+    },
+
     async getMovie(id) {
       if (String(id).startsWith("tmdb:")) {
         const tmdbId = id.slice(5);
         const data = await tmdbFetch("/movie/" + tmdbId, {
-          append_to_response: "videos,credits",
+          append_to_response: "videos,credits,keywords",
         });
         const movie = normTmdb(data);
+        applyRich(movie, extractRich(data));
+        const cache = loadDetails();
+        cache[String(tmdbId)] = { kw: movie.keywordIds, cast: movie.castIds, dir: movie.directorId };
+        saveDetails(cache);
         if (data.credits) {
           const dir = (data.credits.crew || []).find((c) => c.job === "Director");
           if (dir) movie.director = dir.name;
