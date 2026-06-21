@@ -947,3 +947,7 @@ button { font-family: inherit; cursor: pointer; }
 .cattile { display: flex; align-items: center; gap: 10px; padding: 16px; border-radius: var(--radius); background: var(--bg-2); border: 1px solid var(--border); font-weight: 600; color: var(--text); transition: transform 0.15s, border-color 0.15s, color 0.15s; }
 .cattile:hover { border-color: var(--accent); transform: translateY(-2px); color: var(--accent); }
 .cattile__e { font-size: 22px; flex-shrink: 0; }
+
+/* Гарантируем центрирование контента hero внутри full-bleed фона */
+.hero2--cine .hero2__top { justify-content: center; }
+.hero2__wrap { width: 100%; }
