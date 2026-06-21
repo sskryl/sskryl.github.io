@@ -635,6 +635,27 @@
     return out;
   }
 
+  // ----- Раздел «Категории» (все жанры плитками) -----------------------------
+  const CAT_EMO = { 28: "💥", 12: "🧭", 16: "🧸", 35: "😂", 80: "🕵️", 99: "🎓", 18: "🎭", 10751: "👨‍👩‍👧", 14: "🧙", 36: "🏛", 27: "😱", 10402: "🎵", 9648: "🔍", 10749: "❤️", 878: "🚀", 53: "😰", 10752: "⚔️", 37: "🤠", 10770: "📺", 10759: "🎢" };
+  function renderCategories() {
+    stopHero();
+    const genres = Api.getGenres ? Api.getGenres() : [];
+    const tiles = genres
+      .filter((g) => g && g.name)
+      .map((g) => `<a class="cattile" href="#/catalog/genre/${g.id}"><span class="cattile__e">${CAT_EMO[g.id] || "🎬"}</span><span class="cattile__t">${UI.esc(g.name)}</span></a>`)
+      .join("");
+    const special =
+      `<a class="cattile" href="#/cat/anime"><span class="cattile__e">🎌</span><span class="cattile__t">Аниме</span></a>` +
+      `<a class="cattile" href="#/cat/new"><span class="cattile__e">🆕</span><span class="cattile__t">Новинки</span></a>` +
+      `<a class="cattile" href="#/free"><span class="cattile__e">🆓</span><span class="cattile__t">Бесплатно</span></a>`;
+    appEl.innerHTML = `<div class="container">
+      <div class="page-head"><h1>🗂 Категории</h1><p>Выбери жанр или тематику</p></div>
+      <div class="cattiles">${tiles}${special}</div>
+      <section class="section"><div class="section__head"><h2 class="section__title">🎬 Подборки</h2></div>${UI.collectionCards()}</section>
+    </div>`;
+    scrollTop();
+  }
+
   function renderCatalog(genre, query) {
     stopHero();
     const q = query || {};
@@ -1245,6 +1266,7 @@
     const parts = path.replace(/^#\//, "").split("/").filter(Boolean);
     if (parts.length === 0) return shouldOnboard() ? renderOnboarding() : renderHome();
     if (parts[0] === "start") { onbState = null; return renderOnboarding(); }
+    if (parts[0] === "categories") return renderCategories();
     if (parts[0] === "collection") return renderCollection(parts[1]);
     if (parts[0] === "cat") return renderCategory(parts[1]);
     if (parts[0] === "catalog" && parts[1] === "genre") return renderCatalog(parts[2], query);

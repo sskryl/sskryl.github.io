@@ -175,21 +175,25 @@
         <div class="hero2__top">
           ${bg ? `<div class="hero2__bg is-on" style="background-image:url('${esc(bg)}')"></div><div class="hero2__bg"></div>` : ""}
           <div class="hero2__scrim"></div>
-          <div class="hero2__text">
-            <span class="hero2__badge">🍷 персональный подбор кино</span>
-            <h1 class="hero2__title">Твой личный <span class="hero2__accent">кино-сомелье</span></h1>
-            <p class="hero2__sub">Подберём фильм точно под твой вкус: ИИ учится на твоих оценках и предлагает именно то, что зайдёт. Без бесконечного скролла.</p>
-            <div class="hero2__moods">${moods}</div>
-            <div class="hero2__cta">
-              <a class="btn btn--lg" href="#/taste">🎯 Собрать кинопрофиль</a>
-              <a class="btn btn--ghost btn--lg" href="#/swipe">🎬 Листать фильмы</a>
+          <div class="hero2__wrap">
+            <div class="hero2__text">
+              <span class="hero2__badge">🍷 персональный подбор кино</span>
+              <h1 class="hero2__title">Твой личный <span class="hero2__accent">кино-сомелье</span></h1>
+              <p class="hero2__sub">Подберём фильм точно под твой вкус: ИИ учится на твоих оценках и предлагает именно то, что зайдёт. Без бесконечного скролла.</p>
+              <div class="hero2__moods">${moods}</div>
+              <div class="hero2__cta">
+                <a class="btn btn--lg" href="#/taste">🎯 Собрать кинопрофиль</a>
+                <a class="btn btn--ghost btn--lg" href="#/swipe">🎬 Листать фильмы</a>
+              </div>
+              <div class="hero2__trust"><span>🧠 учится на твоём вкусе</span><span>🆓 бесплатно</span><span>⚡ без регистрации</span></div>
             </div>
-            <div class="hero2__trust"><span>🧠 учится на твоём вкусе</span><span>🆓 бесплатно</span><span>⚡ без регистрации</span></div>
           </div>
         </div>
         <div class="hero2__newband">
-          <div class="hero2__new-head"><span>🆕 Новинки</span><a href="#/catalog?sort=release_date.desc">Все →</a></div>
-          <div class="hero2__new-strip">${strip}</div>
+          <div class="hero2__wrap">
+            <div class="hero2__new-head"><span>🆕 Новинки</span><a href="#/catalog?sort=release_date.desc">Все →</a></div>
+            <div class="hero2__new-strip">${strip}</div>
+          </div>
         </div>
       </section>`;
   }

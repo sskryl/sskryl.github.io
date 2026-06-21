@@ -933,3 +933,17 @@ button { font-family: inherit; cursor: pointer; }
 .onb2__progress { height: 8px; background: var(--bg-3); border-radius: 999px; overflow: hidden; max-width: 420px; margin: 6px auto 8px; }
 .onb2__bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.3s ease; }
 .onb2__hint { color: var(--text-dim); font-size: 14px; margin-bottom: 14px; }
+
+/* Выравнивание содержимого hero по контейнеру (фон-кадр остаётся во всю ширину) */
+.hero2__wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 20px; position: relative; z-index: 2; }
+.hero2__top { padding: 34px 0; }
+.hero2__newband { padding: 12px 0 18px; }
+@media (max-width: 700px) { .hero2__top { padding: 24px 0; } }
+
+/* ============================================================================
+   Раздел «Категории» (плитки жанров)
+   ========================================================================== */
+.cattiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 8px; }
+.cattile { display: flex; align-items: center; gap: 10px; padding: 16px; border-radius: var(--radius); background: var(--bg-2); border: 1px solid var(--border); font-weight: 600; color: var(--text); transition: transform 0.15s, border-color 0.15s, color 0.15s; }
+.cattile:hover { border-color: var(--accent); transform: translateY(-2px); color: var(--accent); }
+.cattile__e { font-size: 22px; flex-shrink: 0; }
