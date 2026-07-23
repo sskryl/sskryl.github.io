@@ -1,10 +1,10 @@
 """LLM-сомелье: словесный портрет вкуса + объяснения «почему зайдёт».
 
 Берёт список любимых фильмов пользователя и список кандидатов-рекомендаций,
-просит Claude (Anthropic) описать вкус человеческим языком и объяснить,
+просит модель OpenAI (ChatGPT) описать вкус человеческим языком и объяснить,
 почему каждый кандидат подойдёт именно этому зрителю.
 
-Ключ берётся из ANTHROPIC_API_KEY (только на сервере — никогда на клиенте).
+Ключ берётся из OPENAI_API_KEY (только на сервере — никогда на клиенте).
 Если ключа или пакета нет — вежливо возвращаем configured=False, и фронт
 просто прячет фичу.
 """
@@ -15,20 +15,20 @@ import os
 import re
 from typing import List, Optional
 
-# Модель по умолчанию — самая способная; можно переопределить через env.
-DEFAULT_MODEL = os.getenv("SOMMELIER_MODEL", "claude-opus-4-8")
+# Модель по умолчанию; можно переопределить через env SOMMELIER_MODEL.
+DEFAULT_MODEL = os.getenv("SOMMELIER_MODEL", "gpt-4o")
 MAX_LIKED = 24
 MAX_CANDIDATES = 18
 
 
 def is_configured() -> bool:
-    return bool((os.getenv("ANTHROPIC_API_KEY") or "").strip())
+    return bool((os.getenv("OPENAI_API_KEY") or "").strip())
 
 
 def _client():
-    from anthropic import Anthropic  # ленивый импорт: пакет нужен только здесь
+    from openai import OpenAI  # ленивый импорт: пакет нужен только здесь
 
-    return Anthropic()  # ключ из ANTHROPIC_API_KEY
+    return OpenAI()  # ключ из OPENAI_API_KEY
 
 
 def _fmt_movie(m: dict, with_overview: bool = False) -> str:
@@ -98,14 +98,14 @@ def taste_profile(liked: List[dict], candidates: List[dict]) -> dict:
     """Возвращает {profile, picks:[{id, reason}], model}. Кидает исключение при сбое LLM."""
     prompt = _build_prompt(liked, candidates)
     client = _client()
-    msg = client.messages.create(
+    resp = client.chat.completions.create(
         model=DEFAULT_MODEL,
         max_tokens=1400,
+        temperature=0.7,
+        response_format={"type": "json_object"},
         messages=[{"role": "user", "content": prompt}],
     )
-    raw = "".join(
-        block.text for block in msg.content if getattr(block, "type", "") == "text"
-    )
+    raw = resp.choices[0].message.content or ""
     data = _extract_json(raw) or {}
 
     cand = [m for m in candidates if m.get("title")][:MAX_CANDIDATES]

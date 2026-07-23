@@ -903,7 +903,7 @@
         body: JSON.stringify(payload),
       });
       if (res.status === 503) {
-        sommEmpty(UI.empty("ИИ-сомелье ещё не настроен на сервере (нужен ключ ANTHROPIC_API_KEY).", "🔌"));
+        sommEmpty(UI.empty("ИИ-сомелье ещё не настроен на сервере (нужен ключ OPENAI_API_KEY).", "🔌"));
         return;
       }
       if (!res.ok) throw new Error("http " + res.status);

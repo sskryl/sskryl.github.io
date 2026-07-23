@@ -3,4 +3,4 @@
 flask==3.0.3
 python-dotenv==1.0.1
 # LLM-сомелье (эндпоинт /api/sommelier). Чистый Python-пакет, без нативных сборок.
-anthropic>=0.40
+openai>=1.40
