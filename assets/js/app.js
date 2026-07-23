@@ -33,7 +33,7 @@
   }
 
   function routeKey(h) {
-    if (["#/match", "#/taste", "#/swipe", "#/quiz", "#/foryou"].some((r) => h.indexOf(r) === 0)) return "podbor";
+    if (["#/match", "#/taste", "#/swipe", "#/quiz", "#/foryou", "#/sommelier"].some((r) => h.indexOf(r) === 0)) return "podbor";
     if (h.indexOf("#/my") === 0) return "my";
     if (h.indexOf("#/cat/new") === 0) return "new";
     if (h.indexOf("#/catalog") === 0 && h.indexOf("release_date") >= 0) return "new";
@@ -831,6 +831,98 @@
     scrollTop();
   }
 
+  // ----- 🍷 ИИ-сомелье: словесный портрет вкуса + «почему зайдёт» ------------
+  const SOMM_KEY = "cinema:sommelier";
+  function sommCacheGet() { try { return JSON.parse(localStorage.getItem(SOMM_KEY) || "null"); } catch (e) { return null; } }
+  function sommCacheSet(v) { try { localStorage.setItem(SOMM_KEY, JSON.stringify(v)); } catch (e) {} }
+  function sommCacheClear() { try { localStorage.removeItem(SOMM_KEY); } catch (e) {} }
+
+  function movieForLLM(m, withOverview) {
+    return {
+      id: m.id,
+      title: m.title,
+      year: m.year || "",
+      genres: Api.genreNames(m.genres, 3),
+      overview: withOverview ? (m.overview || "") : "",
+    };
+  }
+
+  function sommEmpty(html) {
+    const body = document.getElementById("somm-body");
+    if (body) body.innerHTML = html;
+  }
+
+  function renderSommResult(result) {
+    const cards = (result.items || [])
+      .map((it) => `<div class="somm-pick">${UI.card(it.movie)}<div class="somm-reason"><span class="somm-reason__i">🍷</span><p>${UI.esc(it.reason || "")}</p></div></div>`)
+      .join("");
+    sommEmpty(`
+      <div class="somm-profile">
+        <div class="somm-profile__badge">🍷 Ваш вкус словами</div>
+        <p class="somm-profile__text">${UI.esc(result.profile || "")}</p>
+      </div>
+      ${result.items && result.items.length ? `<h2 class="somm-h">Почему вам зайдёт</h2><div class="somm-grid">${cards}</div>` : ""}
+      <div class="load-more"><button class="btn btn--ghost" data-somm-refresh>↻ Обновить портрет</button></div>`);
+  }
+
+  async function renderSommelier() {
+    stopHero();
+    appEl.innerHTML = `<div class="container">
+      <div class="page-head"><h1>🍷 Кинопрофиль словами</h1><p>ИИ-сомелье опишет ваш вкус человеческим языком и объяснит, почему каждый фильм вам зайдёт.</p></div>
+      <div id="somm-body"></div></div>`;
+    scrollTop();
+    if (!CFG.apiBaseUrl) {
+      sommEmpty(UI.empty("Функция появится, когда будет подключён сервер сомелье.", "🍷"));
+      return;
+    }
+    const liked = Taste.liked ? Taste.liked() : [];
+    if (liked.length < 3) {
+      sommEmpty(UI.empty("Оцените хотя бы 3 фильма (❤️), и сомелье соберёт ваш вкусовой портрет.", "🍷") +
+        `<div class="load-more"><a class="btn" href="#/swipe">🎬 Оценить фильмы</a></div>`);
+      return;
+    }
+    const sig = liked.map((m) => m.id).sort().join(",");
+    const cached = sommCacheGet();
+    if (cached && cached.sig === sig && cached.items) { renderSommResult(cached); return; }
+
+    sommEmpty(`<div class="somm-loading"><div class="spinner"></div><p>Сомелье изучает ваш вкус…</p></div>`);
+
+    let candidates = [];
+    try { candidates = (await buildSwipePool()).slice(0, 16); } catch (e) {}
+    if (!candidates.length) { sommEmpty(UI.empty("Не удалось собрать кандидатов. Попробуйте позже.", "😕")); return; }
+
+    const payload = {
+      liked: liked.slice(0, 24).map((m) => movieForLLM(m, false)),
+      candidates: candidates.map((m) => movieForLLM(m, true)),
+    };
+    let data = null;
+    try {
+      const res = await fetch(CFG.apiBaseUrl.replace(/\/$/, "") + "/api/sommelier", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.status === 503) {
+        sommEmpty(UI.empty("ИИ-сомелье ещё не настроен на сервере (нужен ключ ANTHROPIC_API_KEY).", "🔌"));
+        return;
+      }
+      if (!res.ok) throw new Error("http " + res.status);
+      data = await res.json();
+    } catch (e) {
+      sommEmpty(UI.empty("Сомелье временно недоступен. Попробуйте позже.", "😕") +
+        `<div class="load-more"><button class="btn btn--ghost" data-somm-refresh>↻ Повторить</button></div>`);
+      return;
+    }
+    const byId = {};
+    candidates.forEach((m) => { byId[m.id] = m; });
+    const items = (data.picks || [])
+      .map((p) => ({ movie: byId[p.id], reason: p.reason }))
+      .filter((x) => x.movie);
+    const result = { sig: sig, profile: data.profile || "", items: items };
+    sommCacheSet(result);
+    renderSommResult(result);
+  }
+
   function renderMy() {
     stopHero();
     const wl = window.Watchlist ? Watchlist.all() : [];
@@ -1286,6 +1378,7 @@
     if (parts[0] === "match") return renderMatch();
     if (parts[0] === "swipe") return renderSwipe();
     if (parts[0] === "foryou") return renderForYou();
+    if (parts[0] === "sommelier") return renderSommelier();
     if (parts[0] === "my") return renderMy();
     if (parts[0] === "taste") return renderTaste();
     if (parts[0] === "quiz") return renderQuiz();
@@ -1485,6 +1578,11 @@
       if (e.target.closest("[data-refeat]")) {
         renderFeaturedInto(document.getElementById("feat-hero"));
         toast("🔄 Показал другой вариант");
+        return;
+      }
+      if (e.target.closest("[data-somm-refresh]")) {
+        sommCacheClear();
+        renderSommelier();
         return;
       }
       const cardRate = e.target.closest("[data-card-rate]");

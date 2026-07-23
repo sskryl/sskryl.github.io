@@ -23,6 +23,7 @@ import time
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
 
+import sommelier
 import storage
 import taste
 
@@ -53,7 +54,8 @@ app = Flask(__name__)
 def _before():
     if request.method == "OPTIONS":
         return ("", 204)
-    if request.path == "/api/health":
+    # Эти эндпоинты не трогают БД — не блокируем их, если база недоступна.
+    if request.path in ("/api/health", "/api/sommelier"):
         return None
     try:
         storage.ensure_db()
@@ -199,6 +201,30 @@ def put_profile():
     if data.get("preferred_genres") is not None:
         storage.set_preferred_genres(uid, data["preferred_genres"])
     return jsonify(storage.get_profile(uid))
+
+
+@app.get("/api/sommelier/health")
+def sommelier_health():
+    return jsonify({"ok": True, "configured": sommelier.is_configured()})
+
+
+@app.post("/api/sommelier")
+def sommelier_endpoint():
+    if not sommelier.is_configured():
+        return jsonify({"error": "not_configured", "configured": False}), 503
+    data = request.get_json(force=True, silent=True) or {}
+    liked = data.get("liked") or []
+    candidates = data.get("candidates") or []
+    if not isinstance(liked, list) or not isinstance(candidates, list):
+        return jsonify({"error": "bad_request"}), 400
+    if not liked or not candidates:
+        return jsonify({"error": "need_more_data", "configured": True}), 400
+    try:
+        result = sommelier.taste_profile(liked, candidates)
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": "llm_failed", "detail": str(exc)}), 502
+    result["configured"] = True
+    return jsonify(result)
 
 
 @app.post("/api/rate")
