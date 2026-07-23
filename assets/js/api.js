@@ -69,6 +69,7 @@
       title: m.title || m.name || "",
       originalTitle: m.original_title || m.original_name || "",
       year: (m.release_date || "").slice(0, 4) || null,
+      releaseDate: m.release_date || "",
       country: "",
       genres: m.genre_ids || (m.genres ? m.genres.map((g) => g.id) : []),
       rating: m.vote_average ? Math.round(m.vote_average * 10) / 10 : null,
@@ -93,6 +94,23 @@
     const res = await fetch(url.toString());
     if (!res.ok) throw new Error("TMDB " + res.status);
     return res.json();
+  }
+
+  // Окно кинопроката: фильмы, вышедшие менее чем THEATER_WINDOW дней назад,
+  // считаем «ещё в прокате» и не показываем.
+  const THEATER_WINDOW = 90;
+  function theaterCutoff() {
+    const d = new Date();
+    d.setDate(d.getDate() - THEATER_WINDOW);
+    return d.toISOString().slice(0, 10);
+  }
+  function watchable(m) {
+    if (!m || !m.releaseDate) return true; // нет даты (напр. public-domain) — оставляем
+    return m.releaseDate <= theaterCutoff();
+  }
+  // normTmdb + отсев «в прокате»
+  function mapMovies(results) {
+    return (results || []).map(normTmdb).filter(watchable);
   }
 
   function localPage(list) {
@@ -137,7 +155,7 @@
     async getTrending(page = 1) {
       if (this.hasTmdb()) {
         const d = await tmdbFetch("/trending/movie/week", { page });
-        return { results: d.results.map(normTmdb), totalPages: d.total_pages };
+        return { results: mapMovies(d.results), totalPages: d.total_pages };
       }
       const all = catalog.movies.map(normLocal).sort((a, b) => (b.rating || 0) - (a.rating || 0));
       return localPage(all);
@@ -150,11 +168,11 @@
         const d = await tmdbFetch("/discover/movie", {
           sort_by: "popularity.desc",
           "primary_release_date.gte": from.toISOString().slice(0, 10),
-          "primary_release_date.lte": today.toISOString().slice(0, 10),
+          "primary_release_date.lte": theaterCutoff(),
           "vote_count.gte": 80,
           page,
         });
-        return { results: d.results.map(normTmdb), totalPages: d.total_pages };
+        return { results: mapMovies(d.results), totalPages: d.total_pages };
       }
       const all = catalog.movies.map(normLocal).sort((a, b) => (b.year || 0) - (a.year || 0));
       return localPage(all);
@@ -163,7 +181,7 @@
     async getTopRated(page = 1) {
       if (this.hasTmdb()) {
         const d = await tmdbFetch("/movie/top_rated", { page });
-        return { results: d.results.map(normTmdb), totalPages: d.total_pages };
+        return { results: mapMovies(d.results), totalPages: d.total_pages };
       }
       const all = catalog.movies.map(normLocal).sort((a, b) => (b.rating || 0) - (a.rating || 0));
       return localPage(all);
@@ -172,7 +190,7 @@
     async getPopular(page = 1) {
       if (this.hasTmdb()) {
         const d = await tmdbFetch("/movie/popular", { page });
-        return { results: d.results.map(normTmdb), totalPages: d.total_pages };
+        return { results: mapMovies(d.results), totalPages: d.total_pages };
       }
       return localPage(catalog.movies.map(normLocal));
     },
@@ -194,8 +212,10 @@
         }
         if (year) params.primary_release_year = year;
         if (minRating) params["vote_average.gte"] = minRating;
+        // не показываем фильмы, ещё идущие в прокате
+        params["primary_release_date.lte"] = theaterCutoff();
         const d = await tmdbFetch("/discover/movie", params);
-        return { results: d.results.map(normTmdb), totalPages: d.total_pages };
+        return { results: mapMovies(d.results), totalPages: d.total_pages };
       }
       // Локальный режим
       let list = catalog.movies.map(normLocal);
@@ -215,12 +235,12 @@
     // Подбор по нескольким жанрам (OR) + диапазон годов — для «Слайдеров вкуса»
     async discoverMulti({ genreIds, sort, releaseGte, releaseLte, page = 1 } = {}) {
       if (this.hasTmdb()) {
-        const params = { sort_by: sort || "popularity.desc", "vote_count.gte": 120, page };
+        const params = { sort_by: sort || "popularity.desc", "vote_count.gte": 120, "primary_release_date.lte": theaterCutoff(), page };
         if (genreIds && genreIds.length) params.with_genres = genreIds.join("|");
         if (releaseGte) params["primary_release_date.gte"] = releaseGte;
         if (releaseLte) params["primary_release_date.lte"] = releaseLte;
         const d = await tmdbFetch("/discover/movie", params);
-        return { results: d.results.map(normTmdb), totalPages: d.total_pages };
+        return { results: mapMovies(d.results), totalPages: d.total_pages };
       }
       let listm = catalog.movies.map(normLocal);
       if (genreIds && genreIds.length) listm = listm.filter((m) => m.genres.some((g) => genreIds.includes(g)));
@@ -234,7 +254,7 @@
       if (!q) return localPage([]);
       if (this.hasTmdb()) {
         const d = await tmdbFetch("/search/movie", { query: q, page });
-        return { results: d.results.map(normTmdb), totalPages: d.total_pages };
+        return { results: mapMovies(d.results), totalPages: d.total_pages };
       }
       const low = q.toLowerCase();
       const all = catalog.movies
@@ -306,7 +326,7 @@
       if (movie.source === "tmdb" && this.hasTmdb()) {
         try {
           const d = await tmdbFetch("/movie/" + movie.tmdbId + "/similar", { page: 1 });
-          return d.results.map(normTmdb).slice(0, 12);
+          return mapMovies(d.results).slice(0, 12);
         } catch (e) {
           return [];
         }
@@ -315,6 +335,18 @@
         .map(normLocal)
         .filter((m) => m.id !== movie.id && m.genres.some((g) => movie.genres.includes(g)))
         .slice(0, 12);
+    },
+
+    // Поведенческие рекомендации TMDB («те, кому понравился X, смотрели Y»)
+    async getRecommendations(movie) {
+      if (!movie || movie.source !== "tmdb" || !this.hasTmdb()) return [];
+      const tmdbId = movie.tmdbId || String(movie.id).replace("tmdb:", "");
+      try {
+        const d = await tmdbFetch("/movie/" + tmdbId + "/recommendations", { page: 1 });
+        return mapMovies(d.results);
+      } catch (e) {
+        return [];
+      }
     },
 
     archiveEmbed(archiveId) {

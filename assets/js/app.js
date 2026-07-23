@@ -701,16 +701,28 @@
   async function buildSwipePool() {
     const rated = Taste.ratedIds();
     let pool = [];
+    // 1) Главный сигнал: «похожие на то, что понравилось» — поведенческие
+    //    рекомендации TMDB по твоим лайкам (то, что смотрели те, кому зашло то же).
+    const liked = (Taste.liked ? Taste.liked() : []).filter((m) => m && String(m.id).indexOf("tmdb:") === 0);
+    const seeds = shuffle(liked).slice(0, 5);
+    if (seeds.length) {
+      try {
+        const recs = await Promise.all(seeds.map((m) => Api.getRecommendations(m).catch(() => [])));
+        recs.forEach((r) => { pool = pool.concat(r); });
+      } catch (e) {}
+    }
+    // 2) Топ-жанры + тренды — для разнообразия и холодного старта
     const top = Taste.topGenres(3);
     try {
-      const tr = await Api.getTrending(1);
-      pool = pool.concat(tr.results);
       if (top.length) {
         for (const g of top) {
           const d = await Api.discover({ genre: g, page: 1 });
           pool = pool.concat(d.results);
         }
-      } else {
+      }
+      const tr = await Api.getTrending(1);
+      pool = pool.concat(tr.results);
+      if (!pool.length) {
         const nr = await Api.getNewReleases(1);
         pool = pool.concat(nr.results);
       }
